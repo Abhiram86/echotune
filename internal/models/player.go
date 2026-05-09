@@ -19,6 +19,7 @@ type Player struct {
 	SocketPath string
 	Status     PlayerStatus
 	Done       chan bool
+	Song       SearchResult
 }
 
 func (p *Player) sendCommand(command string) error {

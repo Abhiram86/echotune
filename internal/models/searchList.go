@@ -1,6 +1,7 @@
 package models
 
 type SearchList struct {
+	Query   string         `json:"query"`
 	Results []SearchResult `json:"results"`
 }
 

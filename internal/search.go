@@ -2,6 +2,7 @@ package internal
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os/exec"
@@ -9,8 +10,14 @@ import (
 	"github.com/Abhiram86/echotune/internal/models"
 )
 
-func SearchQuery(query string) (*models.SearchList, error) {
-	cmd := exec.Command(
+func SearchQuery(ctx context.Context, query string, storage *models.Storage) (*models.CachedSong, *models.SearchList, error) {
+	// check cache
+	cached, ok := storage.Cache.Get(query)
+	if ok {
+		return cached, nil, nil
+	}
+
+	cmd := exec.CommandContext(ctx,
 		"yt-dlp",
 		"--flat-playlist",
 		"--dump-json",
@@ -19,11 +26,11 @@ func SearchQuery(query string) (*models.SearchList, error) {
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if err := cmd.Start(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var results []models.SearchResult
@@ -34,7 +41,7 @@ func SearchQuery(query string) (*models.SearchList, error) {
 		item := models.SearchResult{}
 
 		if err := json.Unmarshal(scanner.Bytes(), &item); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal yt-dlp output: %w", err)
+			return nil, nil, fmt.Errorf("failed to unmarshal yt-dlp output: %w", err)
 		}
 
 		results = append(results, models.SearchResult{
@@ -51,14 +58,15 @@ func SearchQuery(query string) (*models.SearchList, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if err := cmd.Wait(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &models.SearchList{
+	return nil, &models.SearchList{
+		Query:   query,
 		Results: results,
 	}, nil
 }

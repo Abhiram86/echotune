@@ -1,21 +1,24 @@
 package internal
 
 import (
+	"context"
+	"os"
 	"os/exec"
 	"time"
 
 	"github.com/Abhiram86/echotune/internal/models"
 )
 
-func PlaySong(p *models.Player, url string) error {
+func PlaySong(ctx context.Context, p *models.Player, song models.SearchResult) error {
 	p.SocketPath = "/tmp/echotune.sock"
+	p.Song = song
 
-	p.Cmd = exec.Command(
+	p.Cmd = exec.CommandContext(ctx,
 		"mpv",
 		"--no-video",
 		"--input-ipc-server="+p.SocketPath,
 		"--ytdl-format=bestaudio[ext=webm]/bestaudio",
-		url,
+		song.URL,
 	)
 
 	err := p.Cmd.Start()
@@ -27,10 +30,9 @@ func PlaySong(p *models.Player, url string) error {
 
 	go func() {
 		err := p.Cmd.Wait()
-		if err != nil {
-			panic(err)
+		if err != nil && ctx.Err() == nil {
+			p.Cmd.Process.Signal(os.Kill)
 		}
-
 		p.Done <- true
 		p.Status = models.Stopped
 	}()

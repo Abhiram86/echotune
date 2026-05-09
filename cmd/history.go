@@ -1,7 +1,13 @@
 package cmd
 
-import "github.com/urfave/cli/v3"
+import (
+	"context"
 
-func History(c *cli.Command) error {
-	return nil
+	"github.com/Abhiram86/echotune/internal/models"
+	"github.com/urfave/cli/v3"
+)
+
+func History(ctx context.Context, c *cli.Command, storage *models.Storage) error {
+	<-ctx.Done()
+	return ctx.Err()
 }

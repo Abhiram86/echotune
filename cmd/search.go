@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"strconv"
@@ -12,21 +13,34 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-func Search(c *cli.Command) error {
+func Search(ctx context.Context, c *cli.Command, storage *models.Storage) error {
 	query := c.Args().First()
 	if query == "" {
 		return fmt.Errorf("no query provided")
 	}
 
-	searchList, err := internal.SearchQuery(query)
+	cached, searchList, err := internal.SearchQuery(ctx, query, storage)
 
 	if err != nil {
 		return err
 	}
 
+	if cached != nil {
+		searchList = &models.SearchList{
+			Query:   query,
+			Results: cached.Results,
+		}
+		fmt.Printf("Using cached results for %s\n", query)
+	}
+
 	for idx, result := range searchList.Results {
-		fmt.Printf("%d. %s\t%s\n", idx+1, result.Title, result.Channel)
-		fmt.Println(result.URL)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			fmt.Printf("%d. %s\t%s\n", idx+1, result.Title, result.Channel)
+			fmt.Println(result.URL)
+		}
 	}
 
 	reader := bufio.NewReader(os.Stdin)
@@ -52,7 +66,18 @@ func Search(c *cli.Command) error {
 
 	player := models.Player{}
 
-	err = internal.PlaySong(&player, searchList.Results[songIdx-1].URL)
+	err = internal.PlaySong(ctx, &player, searchList.Results[songIdx-1])
+	if err != nil {
+		return err
+	}
+
+	if cached == nil {
+		err = storage.Cache.Add(*searchList, songIdx-1)
+		if err != nil {
+			return err
+		}
+	}
+	err = storage.History.Add(searchList.Results[songIdx-1])
 	if err != nil {
 		return err
 	}
@@ -62,10 +87,14 @@ func Search(c *cli.Command) error {
 
 	for {
 		select {
+		case <-ctx.Done():
+			if player.Cmd.Process != nil {
+				player.Cmd.Process.Signal(os.Kill)
+			}
+			return ctx.Err()
 		case <-player.Done:
 			fmt.Println("Player stopped")
 			return nil
-
 		default:
 		}
 
