@@ -2,7 +2,6 @@ package internal
 
 import (
 	"context"
-	"os"
 	"os/exec"
 	"time"
 
@@ -31,14 +30,14 @@ func PlaySong(ctx context.Context, p *models.Player, song models.SearchResult) e
 	go func() {
 		err := p.Cmd.Wait()
 		if err != nil && ctx.Err() == nil {
-			p.Cmd.Process.Signal(os.Kill)
+			p.Cmd.Process.Kill()
 		}
 		p.Done <- true
-		p.Status = models.Stopped
+		p.SetStatus(models.Stopped)
 	}()
 
 	time.Sleep(300 * time.Millisecond)
-	p.Status = models.Playing
+	p.SetStatus(models.Playing)
 
 	return nil
 }

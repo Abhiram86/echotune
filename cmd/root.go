@@ -9,8 +9,9 @@ import (
 
 func New(storage *models.Storage) *cli.Command {
 	return &cli.Command{
-		Name:  "echotune",
-		Usage: "echoes audio to the terminal!",
+		Name:                  "echotune",
+		Usage:                 "echoes audio to the terminal!",
+		EnableShellCompletion: true,
 
 		Commands: []*cli.Command{
 			{
@@ -29,12 +30,9 @@ func New(storage *models.Storage) *cli.Command {
 			},
 			{
 				Name:  "clear",
-				Usage: "clear the cache",
+				Usage: "clear cache, history, or all data",
 				Action: func(ctx context.Context, c *cli.Command) error {
-					if c.Args().First() == "all" {
-						return storage.Clear()
-					}
-					return nil
+					return Clear(ctx, c, storage)
 				},
 			},
 		},

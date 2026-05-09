@@ -24,6 +24,12 @@ func SearchQuery(ctx context.Context, query string, storage *models.Storage) (*m
 		"ytsearch10:"+query,
 	)
 
+	defer func() {
+		if cmd.Process != nil {
+			_ = cmd.Process.Kill()
+		}
+	}()
+
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, nil, err

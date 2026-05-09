@@ -2,6 +2,7 @@ package models
 
 import (
 	"encoding/json"
+	"log"
 	"os"
 	"path/filepath"
 )
@@ -38,6 +39,23 @@ type Download struct {
 	Title    string
 	Path     string
 	Metadata SearchResult
+}
+
+func loadJSON[T any](path string, target *T, fallback func()) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	if err := json.Unmarshal(data, target); err != nil {
+		log.Println("error unmarshalling", path+":", err)
+		fallback()
+	}
+
+	return nil
 }
 
 func (s *Storage) Mount() error {
@@ -91,44 +109,85 @@ func (s *Storage) Mount() error {
 	s.History.Songs = make([]SearchResult, 0)
 	s.Downloads.Songs = make([]Download, 0)
 
-	// load cache
-	if data, err := os.ReadFile(s.Cache.CachePath); err == nil {
-		json.Unmarshal(data, &s.Cache)
+	err = loadJSON(
+		s.Cache.CachePath,
+		&s.Cache,
+		func() {
+			s.Cache.Songs = make(map[string]CachedSong)
+		},
+	)
+	if err != nil {
+		return err
 	}
 
-	// load history
-	if data, err := os.ReadFile(s.History.HistoryPath); err == nil {
-		json.Unmarshal(data, &s.History)
+	err = loadJSON(
+		s.History.HistoryPath,
+		&s.History,
+		func() {
+			s.History.Songs = make([]SearchResult, 0)
+		},
+	)
+	if err != nil {
+		return err
 	}
 
-	// load downloads
-	if data, err := os.ReadFile(s.Downloads.DownloadsPath); err == nil {
-		json.Unmarshal(data, &s.Downloads)
+	err = loadJSON(
+		s.Downloads.DownloadsPath,
+		&s.Downloads,
+		func() {
+			s.Downloads.Songs = make([]Download, 0)
+		},
+	)
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func (s *Storage) Clear() error {
-	err := os.Remove(s.Cache.CachePath)
-	if err != nil {
+func (c *Cache) Clear() error {
+	if _, err := os.Stat(c.CachePath); err == nil {
+		err := os.Remove(c.CachePath)
+		if err != nil {
+			return err
+		}
+	}
+	c.Songs = make(map[string]CachedSong)
+	return nil
+}
+
+func (h *History) Clear() error {
+	if _, err := os.Stat(h.HistoryPath); err == nil {
+		err := os.Remove(h.HistoryPath)
+		if err != nil {
+			return err
+		}
+	}
+	h.Songs = make([]SearchResult, 0)
+	return nil
+}
+
+func (d *Downloads) Clear() error {
+	if _, err := os.Stat(d.DownloadsPath); err == nil {
+		err := os.Remove(d.DownloadsPath)
+		if err != nil {
+			return err
+		}
+	}
+	d.Songs = make([]Download, 0)
+	return nil
+}
+
+func (s *Storage) ClearAll() error {
+	if err := s.Cache.Clear(); err != nil {
 		return err
 	}
-
-	err = os.Remove(s.History.HistoryPath)
-	if err != nil {
+	if err := s.History.Clear(); err != nil {
 		return err
 	}
-
-	err = os.Remove(s.Downloads.DownloadsPath)
-	if err != nil {
+	if err := s.Downloads.Clear(); err != nil {
 		return err
 	}
-
-	s.Cache.Songs = make(map[string]CachedSong)
-	s.History.Songs = make([]SearchResult, 0)
-	s.Downloads.Songs = make([]Download, 0)
-
 	return nil
 }
 
@@ -176,7 +235,7 @@ func (h *History) Add(song SearchResult) error {
 	h.Songs = append(h.Songs, song)
 
 	if len(h.Songs) > MaxHistory {
-		h.Songs = h.Songs[1:]
+		h.Songs = h.Songs[len(h.Songs)-MaxHistory:]
 	}
 
 	return saveToFile(h.HistoryPath, h)
