@@ -25,6 +25,10 @@ type Player struct {
 	Song       SearchResult
 }
 
+type Playable struct {
+	URL string
+}
+
 func (p *Player) GetStatus() PlayerStatus {
 	p.mu.Lock()
 	defer p.mu.Unlock()

@@ -8,9 +8,8 @@ import (
 	"github.com/Abhiram86/echotune/internal/models"
 )
 
-func PlaySong(ctx context.Context, p *models.Player, song models.SearchResult) error {
+func PlaySong(ctx context.Context, p *models.Player, song models.Playable) error {
 	p.SocketPath = "/tmp/echotune.sock"
-	p.Song = song
 
 	p.Cmd = exec.CommandContext(ctx,
 		"mpv",

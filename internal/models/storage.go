@@ -5,8 +5,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
+	"time"
 )
 
+const MaxCacheSize = 100
 const MaxHistory = 100
 
 type Storage struct {
@@ -23,6 +26,7 @@ type Cache struct {
 type CachedSong struct {
 	SelectedIndex int
 	Results       []SearchResult
+	Timestamp     time.Time
 }
 
 type History struct {
@@ -31,14 +35,21 @@ type History struct {
 }
 
 type Downloads struct {
+	mu            sync.Mutex
 	DownloadsPath string
-	Songs         []Download
+	MediaPath     string
+	Songs         map[string]Download
 }
 
 type Download struct {
 	Title    string
 	Path     string
 	Metadata SearchResult
+}
+
+type DownloadManager struct {
+	Mu            sync.Mutex
+	IsDownloading bool
 }
 
 func loadJSON[T any](path string, target *T, fallback func()) error {
@@ -88,6 +99,12 @@ func (s *Storage) Mount() error {
 		"downloads.json",
 	)
 
+	s.Downloads.MediaPath = filepath.Join(
+		home,
+		"Music",
+		"echotune",
+	)
+
 	// ensure directories exist
 	err = os.MkdirAll(filepath.Dir(s.Cache.CachePath), 0755)
 	if err != nil {
@@ -104,10 +121,15 @@ func (s *Storage) Mount() error {
 		return err
 	}
 
+	err = os.MkdirAll(s.Downloads.MediaPath, 0755)
+	if err != nil {
+		return err
+	}
+
 	// initialize safe defaults FIRST
 	s.Cache.Songs = make(map[string]CachedSong)
 	s.History.Songs = make([]SearchResult, 0)
-	s.Downloads.Songs = make([]Download, 0)
+	s.Downloads.Songs = make(map[string]Download)
 
 	err = loadJSON(
 		s.Cache.CachePath,
@@ -135,7 +157,7 @@ func (s *Storage) Mount() error {
 		s.Downloads.DownloadsPath,
 		&s.Downloads,
 		func() {
-			s.Downloads.Songs = make([]Download, 0)
+			s.Downloads.Songs = make(map[string]Download)
 		},
 	)
 	if err != nil {
@@ -168,13 +190,21 @@ func (h *History) Clear() error {
 }
 
 func (d *Downloads) Clear() error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	if _, err := os.Stat(d.DownloadsPath); err == nil {
 		err := os.Remove(d.DownloadsPath)
 		if err != nil {
 			return err
 		}
 	}
-	d.Songs = make([]Download, 0)
+	if _, err := os.Stat(d.MediaPath); err == nil {
+		err := os.RemoveAll(d.MediaPath)
+		if err != nil {
+			return err
+		}
+	}
+	d.Songs = make(map[string]Download)
 	return nil
 }
 
@@ -200,35 +230,43 @@ func saveToFile(path string, v any) error {
 	return os.WriteFile(path, data, 0644)
 }
 
-// func (s *Storage) Save() error {
-// 	err := saveToFile(s.Cache.CachePath, s.Cache)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	err = saveToFile(s.History.HistoryPath, s.History)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	return saveToFile(s.Downloads.DownloadsPath, s.Downloads)
-// }
-
 func (c *Cache) Add(songs SearchList, selectedIndex int) error {
+	if _, exists := c.Songs[songs.Query]; !exists && len(c.Songs) >= MaxCacheSize {
+		c.evictOldest()
+	}
 	c.Songs[songs.Query] = CachedSong{
 		SelectedIndex: selectedIndex,
 		Results:       songs.Results,
+		Timestamp:     time.Now(),
 	}
 	return saveToFile(c.CachePath, c)
 }
 
 func (c *Cache) Get(query string) (*CachedSong, bool) {
 	song, ok := c.Songs[query]
+	if ok {
+		song.Timestamp = time.Now()
+		c.Songs[query] = song
+		_ = saveToFile(c.CachePath, c)
+	}
 	return &song, ok
 }
 
-func (c *Cache) Remove(query string) {
-	delete(c.Songs, query)
+func (c *Cache) evictOldest() {
+	var oldestKey string
+	var oldestTime time.Time
+
+	// Iterate to find the entry with the minimum (oldest) timestamp
+	for key, song := range c.Songs {
+		if oldestKey == "" || song.Timestamp.Before(oldestTime) {
+			oldestTime = song.Timestamp
+			oldestKey = key
+		}
+	}
+
+	if oldestKey != "" {
+		delete(c.Songs, oldestKey)
+	}
 }
 
 func (h *History) Add(song SearchResult) error {
@@ -247,4 +285,26 @@ func (h *History) Get(idx int) (SearchResult, bool) {
 	}
 
 	return h.Songs[idx], true
+}
+
+func (d *Downloads) Add(song Download) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.Songs[song.Metadata.ID] = song
+	return saveToFile(d.DownloadsPath, d)
+}
+
+func (d *Downloads) Remove(song Download) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	id := song.Metadata.ID
+	if s, exists := d.Songs[id]; exists {
+		delete(d.Songs, id)
+		err := os.RemoveAll(s.Path)
+		if err != nil {
+			return err
+		}
+		return saveToFile(d.DownloadsPath, d)
+	}
+	return nil
 }

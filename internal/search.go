@@ -10,18 +10,20 @@ import (
 	"github.com/Abhiram86/echotune/internal/models"
 )
 
-func SearchQuery(ctx context.Context, query string, storage *models.Storage) (*models.CachedSong, *models.SearchList, error) {
+func SearchQuery(ctx context.Context, query string, storage *models.Storage, length string) (*models.CachedSong, *models.SearchList, error) {
 	// check cache
 	cached, ok := storage.Cache.Get(query)
 	if ok {
 		return cached, nil, nil
 	}
 
+	searchTarget := fmt.Sprintf("ytsearch%s:%s", length, query)
+
 	cmd := exec.CommandContext(ctx,
 		"yt-dlp",
 		"--flat-playlist",
 		"--dump-json",
-		"ytsearch10:"+query,
+		searchTarget,
 	)
 
 	defer func() {

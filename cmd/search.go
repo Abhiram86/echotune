@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/Abhiram86/echotune/internal"
 	"github.com/Abhiram86/echotune/internal/input"
@@ -19,7 +20,11 @@ func Search(ctx context.Context, c *cli.Command, storage *models.Storage) error 
 		return fmt.Errorf("no query provided")
 	}
 
-	cached, searchList, err := internal.SearchQuery(ctx, query, storage)
+	var maxLimit = "10"
+	if c.Int("limit") > 0 && c.Int("limit") < 101 {
+		maxLimit = strconv.Itoa(c.Int("limit"))
+	}
+	cached, searchList, err := internal.SearchQuery(ctx, query, storage, maxLimit)
 
 	if err != nil {
 		return err
@@ -33,19 +38,31 @@ func Search(ctx context.Context, c *cli.Command, storage *models.Storage) error 
 		fmt.Printf("Using cached results for %s\n", query)
 	}
 
-	err = ui.PrintSearchResults(ctx, searchList.Results)
-	if err != nil {
-		return err
+	if !c.Bool("auto") {
+		err = ui.PrintSearchResults(ctx, searchList.Results)
+		if err != nil {
+			return err
+		}
 	}
 
+	var songIdx int
+
 	reader := bufio.NewReader(os.Stdin)
-	songIdx, err := input.ReadSelection(reader, len(searchList.Results))
+	if c.Bool("auto") {
+		songIdx, err = input.SelectBestSong(searchList)
+		if err != nil {
+			return err
+		}
+	} else {
+		songIdx, err = input.ReadSelection(reader, len(searchList.Results))
+	}
 
 	fmt.Printf("Playing song %s\n", searchList.Results[songIdx].Title)
 
 	player := models.Player{}
+	player.Song = searchList.Results[songIdx]
 
-	err = internal.PlaySong(ctx, &player, searchList.Results[songIdx])
+	err = internal.PlaySong(ctx, &player, models.Playable{URL: searchList.Results[songIdx].URL})
 	if err != nil {
 		return err
 	}
@@ -61,7 +78,7 @@ func Search(ctx context.Context, c *cli.Command, storage *models.Storage) error 
 		return err
 	}
 
-	err = internal.Controls(ctx, &player, reader)
+	err = internal.Controls(ctx, &player, storage, reader)
 	if err != nil {
 		return err
 	}

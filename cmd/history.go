@@ -9,8 +9,29 @@ import (
 )
 
 func History(ctx context.Context, c *cli.Command, storage *models.Storage) error {
-	for idx, song := range storage.History.Songs {
-		fmt.Printf("%d. %s\t%s\n", idx+1, song.Title, song.Channel)
+	maxLimit := models.MaxHistory
+
+	if c.Int("limit") > 0 {
+		maxLimit = c.Int("limit")
 	}
+
+	songs := storage.History.Songs
+
+	if maxLimit > len(songs) {
+		maxLimit = len(songs)
+	}
+
+	start := len(songs) - maxLimit
+
+	for i := len(songs) - 1; i >= start; i-- {
+		song := songs[i]
+
+		fmt.Printf("%d. %s\t%s\n",
+			len(songs)-i,
+			song.Title,
+			song.Channel,
+		)
+	}
+
 	return nil
 }

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/Abhiram86/echotune/internal/models"
 )
 
 func ReadSelection(
@@ -28,4 +30,33 @@ func ReadSelection(
 	}
 
 	return idx - 1, nil
+}
+
+const views_weight float32 = 0.5
+const likes_weight float32 = 0.5
+
+func balancedScore(viewCount, likeCount int) float32 {
+	if viewCount+likeCount == 0 {
+		return 0
+	}
+	return (float32(viewCount)*views_weight + float32(likeCount)*likes_weight) / float32(viewCount+likeCount)
+}
+
+func SelectBestSong(songs *models.SearchList) (int, error) {
+	if len(songs.Results) == 0 {
+		return 0, fmt.Errorf("no results found")
+	}
+
+	bestScore := float32(0)
+	bestIdx := 0
+
+	for idx, song := range songs.Results {
+		score := balancedScore(song.ViewCount, song.LikeCount)
+		if score > bestScore {
+			bestScore = score
+			bestIdx = idx
+		}
+	}
+
+	return bestIdx, nil
 }
