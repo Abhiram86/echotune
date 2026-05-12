@@ -3,9 +3,9 @@ package downloads
 import (
 	"context"
 	"fmt"
-	"sort"
 
 	"github.com/Abhiram86/echotune/internal/models"
+	"github.com/Abhiram86/echotune/internal/operations"
 	"github.com/urfave/cli/v3"
 )
 
@@ -16,9 +16,24 @@ func List(ctx context.Context, c *cli.Command, storage *models.Storage) error {
 		songs = append(songs, song)
 	}
 
-	sort.Slice(songs, func(i, j int) bool {
-		return songs[i].Title < songs[j].Title
-	})
+	if c.Bool("sort") {
+		songs = operations.Sort(songs, func(a, b models.Download) bool {
+			return a.Timestamp.Before(b.Timestamp)
+		})
+	} else if c.Bool("sortt") {
+		songs = operations.Sort(songs, func(a, b models.Download) bool {
+			return a.Metadata.Title < b.Metadata.Title
+		})
+	} else {
+		// Default to sorting by title to ensure consistent order
+		songs = operations.Sort(songs, func(a, b models.Download) bool {
+			return a.Metadata.Title < b.Metadata.Title
+		})
+	}
+
+	if c.Int("limit") > 0 {
+		songs = operations.Limit(songs, int(c.Int("limit")))
+	}
 
 	idx := 1
 	for i := len(songs) - 1; i >= 0; i-- {

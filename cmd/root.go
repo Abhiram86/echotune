@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"os"
 
 	"github.com/Abhiram86/echotune/cmd/downloads"
 	"github.com/Abhiram86/echotune/internal/models"
@@ -26,8 +27,13 @@ func New(storage *models.Storage) *cli.Command {
 					},
 					&cli.IntFlag{
 						Name:    "limit",
-						Aliases: []string{"n"},
+						Aliases: []string{"l"},
 						Usage:   "limit the number of results",
+					},
+					&cli.IntFlag{
+						Name:    "repeat",
+						Aliases: []string{"r"},
+						Usage:   "repeat the search",
 					},
 				},
 				Action: func(ctx context.Context, c *cli.Command) error {
@@ -40,7 +46,7 @@ func New(storage *models.Storage) *cli.Command {
 				Flags: []cli.Flag{
 					&cli.IntFlag{
 						Name:    "limit",
-						Aliases: []string{"n"},
+						Aliases: []string{"l"},
 						Usage:   "limit the number of results",
 					},
 				},
@@ -59,13 +65,18 @@ func New(storage *models.Storage) *cli.Command {
 						Flags: []cli.Flag{
 							&cli.IntFlag{
 								Name:    "limit",
-								Aliases: []string{"n"},
+								Aliases: []string{"l"},
 								Usage:   "limit the number of results",
 							},
-							&cli.StringFlag{
+							&cli.BoolFlag{
 								Name:    "sort",
 								Aliases: []string{"s"},
-								Usage:   "sort by (title, date, size)",
+								Usage:   "sort by date",
+							},
+							&cli.BoolFlag{
+								Name:    "sortt",
+								Aliases: []string{"st"},
+								Usage:   "sort by title",
 							},
 						},
 						Action: func(ctx context.Context, c *cli.Command) error {
@@ -75,8 +86,25 @@ func New(storage *models.Storage) *cli.Command {
 					{
 						Name:  "play",
 						Usage: "play a downloaded song",
+						Flags: []cli.Flag{
+							&cli.IntFlag{
+								Name:    "repeat",
+								Aliases: []string{"r"},
+								Usage:   "repeat the search",
+							},
+							&cli.IntFlag{
+								Name:    "limit",
+								Aliases: []string{"l"},
+								Usage:   "play latest n songs",
+							},
+							&cli.BoolFlag{
+								Name:    "shuffle",
+								Aliases: []string{"sh"},
+								Usage:   "play songs in random order",
+							},
+						},
 						Action: func(ctx context.Context, c *cli.Command) error {
-							return downloads.Play(ctx, c, storage)
+							return downloads.Play(ctx, c, storage, os.Args[2:])
 						},
 					},
 					{

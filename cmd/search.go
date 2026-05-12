@@ -16,6 +16,8 @@ import (
 
 func Search(ctx context.Context, c *cli.Command, storage *models.Storage) error {
 	query := c.Args().First()
+	repeat := max(c.Int("repeat"), 1)
+
 	if query == "" {
 		return fmt.Errorf("no query provided")
 	}
@@ -62,11 +64,6 @@ func Search(ctx context.Context, c *cli.Command, storage *models.Storage) error 
 	player := models.Player{}
 	player.Song = searchList.Results[songIdx]
 
-	err = internal.PlaySong(ctx, &player, models.Playable{URL: searchList.Results[songIdx].URL})
-	if err != nil {
-		return err
-	}
-
 	if cached == nil {
 		err = storage.Cache.Add(*searchList, songIdx)
 		if err != nil {
@@ -78,9 +75,23 @@ func Search(ctx context.Context, c *cli.Command, storage *models.Storage) error 
 		return err
 	}
 
-	err = internal.Controls(ctx, &player, storage, reader)
-	if err != nil {
-		return err
+	for i := range repeat {
+		if repeat > 1 {
+			fmt.Printf("Playing song (Session %d/%d): %s\n", i+1, repeat, searchList.Results[songIdx].Title)
+		}
+
+		err = internal.PlaySong(ctx, &player, models.Playable{URL: searchList.Results[songIdx].URL})
+		if err != nil {
+			return err
+		}
+
+		err = internal.Controls(ctx, &player, storage, reader, internal.Download)
+		if err != nil {
+			if err.Error() == "interrupted, user quit" {
+				break
+			}
+			return err
+		}
 	}
 
 	return nil

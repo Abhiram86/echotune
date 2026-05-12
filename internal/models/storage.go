@@ -42,9 +42,10 @@ type Downloads struct {
 }
 
 type Download struct {
-	Title    string
-	Path     string
-	Metadata SearchResult
+	Title     string
+	Path      string
+	Metadata  SearchResult
+	Timestamp time.Time
 }
 
 type DownloadManager struct {

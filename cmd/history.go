@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/Abhiram86/echotune/internal/models"
+	"github.com/Abhiram86/echotune/internal/operations"
 	"github.com/urfave/cli/v3"
 )
 
@@ -16,21 +17,23 @@ func History(ctx context.Context, c *cli.Command, storage *models.Storage) error
 	}
 
 	songs := storage.History.Songs
+	if len(songs) == 0 {
+		fmt.Println("No history found.")
+		return nil
+	}
 
 	if maxLimit > len(songs) {
 		maxLimit = len(songs)
 	}
 
-	start := len(songs) - maxLimit
+	displayList := make([]models.SearchResult, len(songs))
+	copy(displayList, songs)
 
-	for i := len(songs) - 1; i >= start; i-- {
-		song := songs[i]
+	displayList = operations.Reverse(displayList)
+	displayList = operations.Limit(displayList, maxLimit)
 
-		fmt.Printf("%d. %s\t%s\n",
-			len(songs)-i,
-			song.Title,
-			song.Channel,
-		)
+	for i, song := range displayList {
+		fmt.Printf("%d. %s\n", i+1, song.Title)
 	}
 
 	return nil

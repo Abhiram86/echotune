@@ -6,6 +6,7 @@ import (
 	"log"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/Abhiram86/echotune/internal/models"
 )
@@ -60,9 +61,10 @@ func DownloadSong(ctx context.Context, storage *models.Storage, song models.Sear
 		}
 
 		downloaded := models.Download{
-			Title:    song.Title,
-			Path:     filepath.Join(storage.Downloads.MediaPath, song.ID),
-			Metadata: song,
+			Title:     song.Title,
+			Path:      filepath.Join(storage.Downloads.MediaPath, song.ID),
+			Metadata:  song,
+			Timestamp: time.Now(),
 		}
 
 		err := storage.Downloads.Add(downloaded)
