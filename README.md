@@ -26,23 +26,60 @@ go build -o et main.go
 
 ## Features
 
-- **Search & Play:** Search for any song on YouTube and instantly play it in the terminal (`echotune search "song name"`).
-- **Auto-Play:** Automatically pick and play the most relevant search result (`--auto` or `-a` flag).
-- **Background Audio:** Plays audio using `mpv` with `--no-video` for minimal resource usage.
-- **Playback Controls:** Pause, play, seek forward/backward, and quit directly from the terminal.
-- **Offline Downloads:** Download the currently playing song in high-quality Opus format (by pressing `d` in the controls).
-- **Downloads Management:**
-  - **List:** View all downloaded songs, with options to sort by date or title, and limit the output.
-  - **Play:** Play downloaded songs by index or title. Supports flexible pipeline arguments like `shuffle`, `limit`, and `repeat` when playing your downloaded library (e.g., `echotune downloads play -l 5 -sh`).
-  - **Remove:** Remove downloaded songs easily.
-- **History & Caching:** Keeps track of your recently played songs and caches search results (with LRU eviction) for faster lookups.
-- **Data Management:** Easily clear your cache, history, or all saved data via the `clear` command.
+### Search & Play
+Search for any song on YouTube and instantly play it in the terminal.
+```bash
+./et search "song name"
+```
+- **Auto-Play:** Automatically pick and play the most relevant result (`--auto` or `-a`).
+- **Limit & Repeat:** Control the number of results (`--limit`) or repeat playback (`--repeat`).
+
+### Downloads Management
+- **Download:** Press `d` while a song is playing to download it in high-quality Opus format.
+- **List:** View all downloaded songs with sorting by date or title, and limit output.
+- **Play:** Play a downloaded song by index or title. Supports pipeline arguments for full playlist control.
+  ```bash
+  ./et downloads play -l 5 -sh
+  ```
+- **Remove:** Remove downloaded songs by index or title.
+
+### Playlists
+Create, manage, and play custom playlists of downloaded songs.
+- **Add to Playlist:** While a song is playing, press `a` to add it to a playlist.
+- **List:** View all saved playlists with sorting and limit options.
+- **Play:** Play songs in a playlist with shuffle, limit, and repeat support.
+- **Remove:** Remove a whole playlist or a specific song from a playlist.
+- **Clear:** Delete all playlists with confirmation.
+
+### History & Caching
+- **History:** View recently played songs with reverse chronological order and limit.
+- **Cache:** Search results are cached with LRU eviction for faster repeat lookups.
+
+### Playback Controls
+- **Pause/Resume:** Toggle playback with `p`.
+- **Seek:** Skip forward/backward by 5 seconds with `f` and `b`.
+- **Skip Tracks:** Next (`n`) and Previous (`v`) support for queue and playlist playback.
+- **Quit:** Stop playback and return to the shell with `q`.
+
+### Data Management
+Easily clear your cache, history, downloads, or all saved data via the `clear` command.
+```bash
+./et clear all       # Clear everything with confirmation
+./et clear cache     # Clear search cache
+./et clear history   # Clear playback history
+```
+
+## Architecture
+
+EchoTune uses a `PlaybackSession` model to unify the player state and song queue across all commands. This allows features like "Next", "Previous", and repeat to work consistently whether you are playing a single searched song, a downloaded track, or an entire playlist.
+
+Playlists are saved as individual JSON files under `~/.local/share/echotune/playlists/`, and the queue resolves downloaded songs to local files automatically (O(1) lookup) before falling back to streaming.
 
 ## Further Improvements
 
 EchoTune is still in active development. Here are some planned improvements for the future:
 
-- **Playlists Support:** Ability to create, manage, and play custom playlists of downloaded songs.
 - **UI Overhaul:** Transitioning from a raw CLI interface to a rich, interactive terminal UI using the [Bubble Tea](https://github.com/charmbracelet/bubbletea) framework (once the core CLI features are finalized and polished).
-- **Extended Playback Controls:** Fully implementing "Next", "Previous", and "Repeat" controls for uninterrupted listening sessions.
 - **Cross-Platform Support:** Expanding official compatibility to macOS and Windows.
+- **Playlist Queue Management:** Reordering songs within a playlist queue during playback.
+- **Equalizer & Audio Settings:** Basic audio filtering options via mpv integration.
