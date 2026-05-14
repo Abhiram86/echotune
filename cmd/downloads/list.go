@@ -10,35 +10,19 @@ import (
 )
 
 func List(ctx context.Context, c *cli.Command, storage *models.Storage) error {
-	songs := make([]models.Download, 0, len(storage.Downloads.Songs))
-
-	for _, song := range storage.Downloads.Songs {
-		songs = append(songs, song)
-	}
-
-	if c.Bool("sort") {
-		songs = operations.Sort(songs, func(a, b models.Download) bool {
+	songs := operations.ToSortedSlice(storage.Downloads.Songs, func(a, b *models.Download) bool {
+		if c.Bool("sort") {
 			return a.Timestamp.Before(b.Timestamp)
-		})
-	} else if c.Bool("sortt") {
-		songs = operations.Sort(songs, func(a, b models.Download) bool {
-			return a.Metadata.Title < b.Metadata.Title
-		})
-	} else {
-		// Default to sorting by title to ensure consistent order
-		songs = operations.Sort(songs, func(a, b models.Download) bool {
-			return a.Metadata.Title < b.Metadata.Title
-		})
-	}
+		}
+		return a.Metadata.Title < b.Metadata.Title
+	})
 
 	if c.Int("limit") > 0 {
 		songs = operations.Limit(songs, int(c.Int("limit")))
 	}
 
-	idx := 1
-	for i := len(songs) - 1; i >= 0; i-- {
-		fmt.Printf("%d. %s\n", idx, songs[i].Title)
-		idx++
+	for i, song := range operations.Reverse(songs) {
+		fmt.Printf("%d. %s\n", i+1, song.Title)
 	}
 
 	return nil

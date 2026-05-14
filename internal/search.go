@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"time"
 
 	"github.com/Abhiram86/echotune/internal/models"
 )
@@ -18,6 +19,9 @@ func SearchQuery(ctx context.Context, query string, storage *models.Storage, len
 	}
 
 	searchTarget := fmt.Sprintf("ytsearch%s:%s", length, query)
+
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
 
 	cmd := exec.CommandContext(ctx,
 		"yt-dlp",

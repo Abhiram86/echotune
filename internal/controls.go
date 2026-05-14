@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/Abhiram86/echotune/internal/models"
 )
@@ -14,19 +15,28 @@ import (
 type Control string
 
 const (
-	Download Control = "d"
-	Next     Control = "n"
-	Previous Control = "v"
-	Repeat   Control = "r"
+	Download           Control = "d"
+	Next               Control = "n"
+	Previous           Control = "z"
+	Repeat             Control = "r"
+	AddToPlaylist      Control = "a"
+	RemoveFromPlaylist Control = "x"
 )
+
+var (
+	globalInputChan chan string
+	inputOnce       sync.Once
+)
+var pendingAction string
 
 func Controls(
 	ctx context.Context,
-	player *models.Player,
+	app *PlaybackSession,
 	storage *models.Storage,
 	reader *bufio.Reader,
 	extraControls ...Control,
 ) error {
+	player := app.Player
 
 	enabled := map[string]bool{
 		"q": true,
@@ -53,10 +63,16 @@ func Controls(
 			controlText = append(controlText, "n - next")
 
 		case Previous:
-			controlText = append(controlText, "v - previous")
+			controlText = append(controlText, "z - previous")
 
 		case Repeat:
 			controlText = append(controlText, "r - repeat")
+
+		case AddToPlaylist:
+			controlText = append(controlText, "a - add to playlist")
+
+		case RemoveFromPlaylist:
+			controlText = append(controlText, "x - remove from playlist")
 		}
 	}
 
@@ -65,14 +81,15 @@ func Controls(
 
 	mgr := models.DownloadManager{}
 
-	inputChan := make(chan string)
-
-	go func() {
-		for {
-			input, _ := reader.ReadString('\n')
-			inputChan <- strings.TrimSpace(input)
-		}
-	}()
+	inputOnce.Do(func() {
+		globalInputChan = make(chan string)
+		go func() {
+			for {
+				input, _ := reader.ReadString('\n')
+				globalInputChan <- strings.TrimSpace(input)
+			}
+		}()
+	})
 
 	for {
 		select {
@@ -87,7 +104,30 @@ func Controls(
 			fmt.Println("Player stopped")
 			return nil
 
-		case input := <-inputChan:
+		case input := <-globalInputChan:
+
+			if pendingAction != "" {
+				switch pendingAction {
+
+				case "add_playlist":
+					err := app.AddToPlaylist(ctx, storage, input)
+					if err != nil {
+						fmt.Printf("failed to add song '%s' to playlist '%s': %v\n", app.CurrentSong().Title, input, err)
+						return err
+					}
+					fmt.Printf("added song '%s' to playlist '%s'\n", app.CurrentSong().Title, input)
+
+				case "remove_playlist":
+					err := app.RemoveFromPlaylist(ctx, storage, input)
+					if err != nil {
+						return err
+					}
+					fmt.Printf("removed song '%s' from playlist '%s'\n", app.CurrentSong().Title, input)
+				}
+
+				pendingAction = ""
+				continue
+			}
 
 			switch input {
 
@@ -122,18 +162,39 @@ func Controls(
 
 			case "n":
 				if enabled["n"] {
-					fmt.Println("next song")
+					err := app.Next(ctx)
+					if err != nil {
+						return err
+					}
 				}
 
-			case "v":
-				if enabled["v"] {
-					fmt.Println("previous song")
+			case "z":
+				if enabled["z"] {
+					err := app.Previous(ctx)
+					if err != nil {
+						return err
+					}
 				}
 
 			case "r":
 				if enabled["r"] {
 					fmt.Println("repeat toggled")
 				}
+
+			case "a":
+				if enabled["a"] {
+					fmt.Print("Playlist title: ")
+					pendingAction = "add_playlist"
+				}
+
+			case "x":
+				if enabled["x"] {
+					fmt.Print("Playlist title: ")
+					pendingAction = "remove_playlist"
+				}
+
+			default:
+				fmt.Printf("unknown command: %s\n", input)
 			}
 		}
 	}

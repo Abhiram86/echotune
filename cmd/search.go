@@ -59,10 +59,15 @@ func Search(ctx context.Context, c *cli.Command, storage *models.Storage) error 
 		songIdx, err = input.ReadSelection(reader, len(searchList.Results))
 	}
 
-	fmt.Printf("Playing song %s\n", searchList.Results[songIdx].Title)
+	song := searchList.Results[songIdx]
 
-	player := models.Player{}
-	player.Song = searchList.Results[songIdx]
+	app := internal.NewPlaybackSession(storage, []models.Download{
+		{
+			Title:    song.Title,
+			Path:     "__SEARCHED__",
+			Metadata: song,
+		},
+	})
 
 	if cached == nil {
 		err = storage.Cache.Add(*searchList, songIdx)
@@ -80,17 +85,9 @@ func Search(ctx context.Context, c *cli.Command, storage *models.Storage) error 
 			fmt.Printf("Playing song (Session %d/%d): %s\n", i+1, repeat, searchList.Results[songIdx].Title)
 		}
 
-		err = internal.PlaySong(ctx, &player, models.Playable{URL: searchList.Results[songIdx].URL})
-		if err != nil {
-			return err
-		}
-
-		err = internal.Controls(ctx, &player, storage, reader, internal.Download)
-		if err != nil {
-			if err.Error() == "interrupted, user quit" {
-				break
-			}
-			return err
+		status := app.PlayALL(ctx, storage, "a")
+		if status == models.Stopped {
+			break
 		}
 	}
 

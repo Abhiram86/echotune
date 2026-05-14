@@ -26,8 +26,7 @@ func History(ctx context.Context, c *cli.Command, storage *models.Storage) error
 		maxLimit = len(songs)
 	}
 
-	displayList := make([]models.SearchResult, len(songs))
-	copy(displayList, songs)
+	displayList := append([]models.SearchResult(nil), songs...)
 
 	displayList = operations.Reverse(displayList)
 	displayList = operations.Limit(displayList, maxLimit)

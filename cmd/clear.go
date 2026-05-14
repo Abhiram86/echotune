@@ -1,12 +1,10 @@
 package cmd
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"os"
-	"strings"
 
+	"github.com/Abhiram86/echotune/internal"
 	"github.com/Abhiram86/echotune/internal/models"
 	"github.com/urfave/cli/v3"
 )
@@ -17,18 +15,9 @@ func Clear(ctx context.Context, c *cli.Command, storage *models.Storage) error {
 		return fmt.Errorf("please specify what to clear: all, cache, or history")
 	}
 
-	reader := bufio.NewReader(os.Stdin)
-
-	confirm := func(message string) bool {
-		fmt.Printf("%s (y/N): ", message)
-		input, _ := reader.ReadString('\n')
-		input = strings.ToLower(strings.TrimSpace(input))
-		return input == "y" || input == "yes"
-	}
-
 	switch arg {
 	case "all":
-		if confirm("This will delete all cache, history, and downloads. Are you sure?") {
+		if internal.Confirm("This will delete all cache, history, and downloads and playlists. Are you sure?") {
 			if err := storage.ClearAll(); err != nil {
 				return err
 			}
@@ -42,7 +31,7 @@ func Clear(ctx context.Context, c *cli.Command, storage *models.Storage) error {
 		}
 		fmt.Println("Successfully cleared cache.")
 	case "history":
-		if confirm("Are you sure you want to clear your playback history?") {
+		if internal.Confirm("Are you sure you want to clear your playback history?") {
 			if err := storage.History.Clear(); err != nil {
 				return err
 			}

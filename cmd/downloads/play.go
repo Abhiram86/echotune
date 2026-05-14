@@ -1,14 +1,9 @@
 package downloads
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
-	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/Abhiram86/echotune/internal"
 	"github.com/Abhiram86/echotune/internal/manual"
@@ -17,106 +12,21 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-func playSong(ctx context.Context, storage *models.Storage, song models.Download, repeat int) error {
-	player := models.Player{
-		Song: song.Metadata,
-	}
-
-	fmt.Printf("Playing %s\n", song.Title)
-
-	entries, err := os.ReadDir(song.Path)
-	if err != nil {
-		return fmt.Errorf("failed to read %s: %w", song.Path, err)
-	}
-
-	var audioFile string
-	for _, entry := range entries {
-		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".opus") {
-			audioFile = filepath.Join(song.Path, entry.Name())
-			break
-		}
-	}
-
-	if audioFile == "" {
-		return fmt.Errorf("no audio file found in %s", song.Path)
-	}
-
-	reader := bufio.NewReader(os.Stdin)
-
-	for i := range repeat {
-		if repeat > 1 {
-			fmt.Printf("Playing song (Session %d/%d): %s\n", i+1, repeat, song.Title)
-		}
-
-		if err := internal.PlaySong(
-			ctx,
-			&player,
-			models.Playable{
-				URL: audioFile,
-			},
-		); err != nil {
-			return err
-		}
-
-		err := internal.Controls(ctx, &player, storage, reader)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func playSongByIndex(
-	ctx context.Context,
-	storage *models.Storage,
-	idx int,
-	repeat int,
-) error {
-	if idx < 1 || idx > len(storage.Downloads.Songs) {
-		return fmt.Errorf("index out of range")
-	}
-
-	songs := make([]models.Download, 0, len(storage.Downloads.Songs))
-
-	for _, song := range storage.Downloads.Songs {
-		songs = append(songs, song)
-	}
-
-	sort.Slice(songs, func(i, j int) bool {
-		return songs[i].Title < songs[j].Title
+func getSortedDownloads(storage *models.Storage) []models.Download {
+	return operations.ToSortedSlice(storage.Downloads.Songs, func(a, b *models.Download) bool {
+		return a.Title < b.Title
 	})
-
-	song := songs[idx-1]
-
-	return playSong(ctx, storage, song, repeat)
 }
 
-func playSongByTitle(
-	ctx context.Context,
-	storage *models.Storage,
-	query string,
-	repeat int,
-) error {
-	var bestSong *models.Download
-	highScore := -1
+func songByQuery(ctx context.Context, storage *models.Storage, query string) (*models.Download, error) {
+	song, found := internal.FindBestMatch(storage.Downloads.Songs, func(d models.Download) string {
+		return d.Title
+	}, query)
 
-	// Iterate map values
-	for _, song := range storage.Downloads.Songs {
-		s := internal.Score(song.Title, query)
-		if s > highScore && s > 0 {
-			highScore = s
-			// We need to take a local copy or pointer to the current song
-			currentSong := song
-			bestSong = &currentSong
-		}
+	if !found {
+		return nil, fmt.Errorf("no matches found for '%s'", query)
 	}
-
-	if bestSong == nil {
-		return fmt.Errorf("no matches found for '%s'", query)
-	}
-
-	return playSong(ctx, storage, *bestSong, repeat)
+	return &song, nil
 }
 
 func Play(
@@ -126,26 +36,43 @@ func Play(
 	args []string,
 ) error {
 	query := c.Args().First()
-	repeat := max(c.Int("repeat"), 1)
 
-	orderedArgs := manual.OrderedArgParse(args)
-	fmt.Println(orderedArgs)
-
-	if len(query) > 0 {
-		if idx, err := strconv.Atoi(query); err == nil {
-			return playSongByIndex(ctx, storage, idx, repeat)
+	if idx, err := strconv.Atoi(query); err == nil {
+		songs := getSortedDownloads(storage)
+		if idx < 1 || idx > len(songs) {
+			return fmt.Errorf("index out of range")
 		}
+		song := songs[idx-1]
 
-		err := playSongByTitle(ctx, storage, query, repeat)
+		app := internal.NewPlaybackSession(storage, []models.Download{song})
+		app.PlayALL(ctx, storage, "a")
+		return nil
+	}
+
+	if query != "" {
+		downloaded, err := songByQuery(ctx, storage, query)
 		if err != nil {
 			return err
 		}
+
+		app := internal.NewPlaybackSession(storage, []models.Download{*downloaded})
+		app.PlayALL(ctx, storage, "a")
+		return nil
 	}
 
-	songs := make([]models.Download, 0, len(storage.Downloads.Songs))
-	for _, song := range storage.Downloads.Songs {
-		songs = append(songs, song)
-	}
+	return PlayAll(ctx, c, storage, args)
+}
+
+func PlayAll(
+	ctx context.Context,
+	c *cli.Command,
+	storage *models.Storage,
+	args []string,
+) error {
+	repeat := max(c.Int("repeat"), 1)
+	orderedArgs := manual.OrderedArgParse(args)
+
+	songs := getSortedDownloads(storage)
 
 	for _, arg := range orderedArgs {
 		switch arg {
@@ -156,18 +83,12 @@ func Play(
 		}
 	}
 
-	for idx := range repeat {
-		if repeat > 1 {
-			fmt.Printf("Playing song (Session %d/%d): %s\n", idx+1, repeat, songs[idx].Title)
-		}
+	app := internal.NewPlaybackSession(storage, songs)
 
-		for _, song := range songs {
-			if err := playSong(ctx, storage, song, 1); err != nil {
-				if err.Error() == "interrupted, user quit" {
-					return nil
-				}
-				return err
-			}
+	for range repeat {
+		status := app.PlayALL(ctx, storage, "n", "z", "a")
+		if status == models.Stopped {
+			app.Queue.CurrentIndex = 0
 		}
 	}
 

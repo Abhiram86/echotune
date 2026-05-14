@@ -1,7 +1,6 @@
 package models
 
 type Queue struct {
-	Songs        []SearchResult
+	Songs        []Download
 	CurrentIndex int
-	Shuffle      bool
 }

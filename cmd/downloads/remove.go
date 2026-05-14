@@ -1,13 +1,9 @@
 package downloads
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"os"
-	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/Abhiram86/echotune/internal"
 	"github.com/Abhiram86/echotune/internal/models"
@@ -15,72 +11,35 @@ import (
 )
 
 func removeByIndex(ctx context.Context, c *cli.Command, storage *models.Storage, idx int) error {
-	if idx < 1 || idx > len(storage.Downloads.Songs) {
+	songs := getSortedDownloads(storage)
+	if idx < 1 || idx > len(songs) {
 		return fmt.Errorf("index out of range")
 	}
 
-	songs := make([]models.Download, 0, len(storage.Downloads.Songs))
-
-	for _, song := range storage.Downloads.Songs {
-		songs = append(songs, song)
+	if internal.Confirm(fmt.Sprintf("do you want to remove %s?", songs[idx-1].Title)) {
+		err := storage.Downloads.Remove(songs[idx-1])
+		if err != nil {
+			return err
+		}
+		fmt.Printf("\nRemoved %s\n", songs[idx-1].Title)
 	}
+	return nil
+}
 
-	sort.Slice(songs, func(i, j int) bool {
-		return songs[i].Title < songs[j].Title
-	})
-
-	song := songs[idx-1]
-
-	fmt.Printf("do you want to uninstall %s? [y/N]: ", song.Title)
-	reader := bufio.NewReader(os.Stdin)
-	input, _ := reader.ReadString('\n')
-	input = strings.ToLower(strings.TrimSpace(input))
-	if input != "y" && input != "yes" {
-		return nil
-	}
-
-	err := storage.Downloads.Remove(song)
+func RemoveByTitle(ctx context.Context, c *cli.Command, storage *models.Storage, query string) error {
+	downloaded, err := songByQuery(ctx, storage, query)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("\nRemoved %s\n", song.Title)
-	return nil
-}
-
-func RemoveByTitle(
-	ctx context.Context,
-	c *cli.Command,
-	storage *models.Storage,
-	query string,
-) error {
-	var bestSong *models.Download
-	highScore := -1
-
-	// Iterate map values
-	for _, song := range storage.Downloads.Songs {
-		s := internal.Score(song.Title, query)
-		if s > highScore && s > 0 {
-			highScore = s
-			// We need to take a local copy or pointer to the current song
-			currentSong := song
-			bestSong = &currentSong
+	if internal.Confirm(fmt.Sprintf("do you want to remove %s?", downloaded.Title)) {
+		err := storage.Downloads.Remove(*downloaded)
+		if err != nil {
+			return err
 		}
+		fmt.Printf("\nRemoved %s\n", downloaded.Title)
 	}
-
-	if bestSong == nil {
-		return fmt.Errorf("no matches found for '%s'", query)
-	}
-
-	fmt.Printf("do you want to uninstall %s? [y/N]: ", bestSong.Title)
-	reader := bufio.NewReader(os.Stdin)
-	input, _ := reader.ReadString('\n')
-	input = strings.ToLower(strings.TrimSpace(input))
-	if input != "y" && input != "yes" {
-		return nil
-	}
-
-	return storage.Downloads.Remove(*bestSong)
+	return nil
 }
 
 func Remove(
