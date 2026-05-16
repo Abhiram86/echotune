@@ -23,6 +23,7 @@ func DownloadSong(ctx context.Context, storage *models.Storage, song models.Sear
 		return fmt.Errorf("download is in progress...")
 	}
 	mgr.IsDownloading = true
+	fmt.Println("Downloading song...")
 	mgr.Mu.Unlock()
 
 	go func() {
@@ -40,7 +41,6 @@ func DownloadSong(ctx context.Context, storage *models.Storage, song models.Sear
 		cmd := exec.CommandContext(
 			context.Background(),
 			"yt-dlp",
-			"--js-runtimes", "node",
 			"--no-progress",
 			"-x",
 			"--audio-format", "opus",

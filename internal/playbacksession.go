@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/Abhiram86/echotune/internal/models"
+	"github.com/Abhiram86/echotune/internal/platform"
 )
 
 type PlaybackSession struct {
@@ -16,8 +17,14 @@ type PlaybackSession struct {
 }
 
 func NewPlaybackSession(storage *models.Storage, songs []models.Download) *PlaybackSession {
+	paths, err := platform.NewAppPaths()
+	if err != nil {
+		panic(err)
+	}
 	return &PlaybackSession{
-		Player: &models.Player{},
+		Player: &models.Player{
+			SocketPath: paths.SocketFile,
+		},
 		Queue: &models.Queue{
 			Songs:        songs,
 			CurrentIndex: 0,

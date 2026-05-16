@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Abhiram86/echotune/internal/platform"
 )
 
 const MaxCacheSize = 100
@@ -85,47 +87,16 @@ func loadJSON[T any](path string, target *T, fallback func()) error {
 }
 
 func (s *Storage) mountPaths() error {
-	home, err := os.UserHomeDir()
+	paths, err := platform.NewAppPaths()
 	if err != nil {
 		return err
 	}
 
-	s.Cache.CachePath = filepath.Join(
-		home,
-		".cache",
-		"echotune",
-		"cache.json",
-	)
-
-	s.History.HistoryPath = filepath.Join(
-		home,
-		".local",
-		"share",
-		"echotune",
-		"history.json",
-	)
-
-	s.Downloads.DownloadsPath = filepath.Join(
-		home,
-		".local",
-		"share",
-		"echotune",
-		"downloads.json",
-	)
-
-	s.Downloads.MediaPath = filepath.Join(
-		home,
-		"Music",
-		"echotune",
-	)
-
-	s.Playlists.PlaylistsPath = filepath.Join(
-		home,
-		".local",
-		"share",
-		"echotune",
-		"playlists",
-	)
+	s.Cache.CachePath = paths.CacheFile
+	s.History.HistoryPath = paths.HistoryFile
+	s.Downloads.DownloadsPath = paths.DownloadFile
+	s.Downloads.MediaPath = paths.DownloadMediaDir
+	s.Playlists.PlaylistsPath = paths.PlaylistDir
 
 	return nil
 }

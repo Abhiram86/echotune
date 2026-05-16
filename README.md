@@ -4,7 +4,7 @@ EchoTune is a fast, terminal-based music player and downloader. It allows you to
 
 ## Prerequisites & Installation
 
-Currently, EchoTune is best supported on **Linux**. It relies on the following external dependencies to fetch and play audio:
+Currently, EchoTune is supported on **Linux, macOS, and Windows**. It relies on the following external dependencies to fetch and play audio:
 
 1. **`yt-dlp`**: Required for searching and downloading audio from YouTube.
 2. **`mpv`**: Required for playing the audio streams in the background.
@@ -80,6 +80,5 @@ Playlists are saved as individual JSON files under `~/.local/share/echotune/play
 EchoTune is still in active development. Here are some planned improvements for the future:
 
 - **UI Overhaul:** Transitioning from a raw CLI interface to a rich, interactive terminal UI using the [Bubble Tea](https://github.com/charmbracelet/bubbletea) framework (once the core CLI features are finalized and polished).
-- **Cross-Platform Support:** Expanding official compatibility to macOS and Windows.
 - **Playlist Queue Management:** Reordering songs within a playlist queue during playback.
 - **Equalizer & Audio Settings:** Basic audio filtering options via mpv integration.

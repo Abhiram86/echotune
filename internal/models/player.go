@@ -3,10 +3,13 @@ package models
 import (
 	"context"
 	"fmt"
-	"net"
+	"os"
 	"os/exec"
+	"runtime"
 	"sync"
 	"time"
+
+	"github.com/Abhiram86/echotune/internal/platform"
 )
 
 type PlayerStatus int
@@ -22,7 +25,7 @@ type Player struct {
 	Cmd        *exec.Cmd
 	SocketPath string
 	Status     PlayerStatus
-	Done       chan bool
+	Done       chan struct{}
 	Song       SearchResult
 }
 
@@ -43,7 +46,7 @@ func (p *Player) SetStatus(status PlayerStatus) {
 }
 
 func (p *Player) sendCommand(command string) error {
-	conn, err := net.DialTimeout("unix", p.SocketPath, 10*time.Second)
+	conn, err := platform.DialIPC(p.SocketPath)
 	if err != nil {
 		return err
 	}
@@ -54,44 +57,54 @@ func (p *Player) sendCommand(command string) error {
 }
 
 func (p *Player) PlaySong(ctx context.Context, song Playable) error {
-	p.SocketPath = "/tmp/echotune.sock"
+	if p.SocketPath == "" {
+		return fmt.Errorf("socket path not set")
+	}
 
-	p.Cmd = exec.CommandContext(ctx,
-		"mpv",
+	// Remove stale unix socket
+	if runtime.GOOS != "windows" {
+		_ = os.Remove(p.SocketPath)
+	}
+
+	args := []string{
 		"--no-video",
-		"--input-ipc-server="+p.SocketPath,
+		"--input-ipc-server=" + p.SocketPath,
 		"--ytdl-format=bestaudio[ext=webm]/bestaudio",
 		"--cache=yes",
 		"--cache-secs=30",
 		"--demuxer-max-bytes=50M",
 		"--ytdl-raw-options=js-runtimes=node",
 		song.URL,
-	)
+	}
 
+	p.Cmd = exec.CommandContext(ctx, "mpv", args...)
+
+	// Optional debug
+	// p.Cmd.Stdout = os.Stdout
 	// p.Cmd.Stderr = os.Stderr
 
-	err := p.Cmd.Start()
-	if err != nil {
+	if err := p.Cmd.Start(); err != nil {
 		return err
 	}
 
-	p.Done = make(chan bool)
+	p.Done = make(chan struct{})
 
 	go func() {
 		err := p.Cmd.Wait()
-		fmt.Printf("\n[DEBUG] mpv exited. Wait err: %v, ctx.Err: %v\n", err, ctx.Err())
 
-		if err != nil && ctx.Err() == nil {
-			fmt.Printf("[DEBUG] Killing mpv process...\n")
-			p.Cmd.Process.Kill()
-		}
+		fmt.Printf(
+			"\n[DEBUG] mpv exited. Wait err: %v, ctx.Err: %v\n",
+			err,
+			ctx.Err(),
+		)
 
-		fmt.Printf("[DEBUG] Sending done signal...\n")
-		p.Done <- true
 		p.SetStatus(Stopped)
+		close(p.Done)
 	}()
 
-	// time.Sleep(300 * time.Millisecond)
+	// Wait a bit for IPC socket/pipe to exist
+	time.Sleep(300 * time.Millisecond)
+
 	p.SetStatus(Playing)
 
 	return nil
