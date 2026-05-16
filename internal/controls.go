@@ -85,7 +85,10 @@ func Controls(
 		globalInputChan = make(chan string)
 		go func() {
 			for {
-				input, _ := reader.ReadString('\n')
+				input, err := reader.ReadString('\n')
+				if err != nil {
+					return
+				}
 				globalInputChan <- strings.TrimSpace(input)
 			}
 		}()
@@ -154,7 +157,7 @@ func Controls(
 
 			case "d":
 				if enabled["d"] {
-					err := DownloadSong(ctx, storage, player.Song, &mgr)
+					err := DownloadSong(ctx, storage, app.CurrentSong().Metadata, &mgr)
 					if err != nil {
 						log.Printf("download skipped: %v", err)
 					}

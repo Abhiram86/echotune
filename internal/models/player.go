@@ -56,16 +56,19 @@ func (p *Player) sendCommand(command string) error {
 func (p *Player) PlaySong(ctx context.Context, song Playable) error {
 	p.SocketPath = "/tmp/echotune.sock"
 
-	ctx, cancel := context.WithTimeout(ctx, time.Second*15)
-	defer cancel()
-
 	p.Cmd = exec.CommandContext(ctx,
 		"mpv",
 		"--no-video",
 		"--input-ipc-server="+p.SocketPath,
 		"--ytdl-format=bestaudio[ext=webm]/bestaudio",
+		"--cache=yes",
+		"--cache-secs=30",
+		"--demuxer-max-bytes=50M",
+		"--ytdl-raw-options=js-runtimes=node",
 		song.URL,
 	)
+
+	// p.Cmd.Stderr = os.Stderr
 
 	err := p.Cmd.Start()
 	if err != nil {
@@ -76,14 +79,19 @@ func (p *Player) PlaySong(ctx context.Context, song Playable) error {
 
 	go func() {
 		err := p.Cmd.Wait()
+		fmt.Printf("\n[DEBUG] mpv exited. Wait err: %v, ctx.Err: %v\n", err, ctx.Err())
+
 		if err != nil && ctx.Err() == nil {
+			fmt.Printf("[DEBUG] Killing mpv process...\n")
 			p.Cmd.Process.Kill()
 		}
+
+		fmt.Printf("[DEBUG] Sending done signal...\n")
 		p.Done <- true
 		p.SetStatus(Stopped)
 	}()
 
-	time.Sleep(300 * time.Millisecond)
+	// time.Sleep(300 * time.Millisecond)
 	p.SetStatus(Playing)
 
 	return nil

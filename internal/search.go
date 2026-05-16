@@ -25,6 +25,7 @@ func SearchQuery(ctx context.Context, query string, storage *models.Storage, len
 
 	cmd := exec.CommandContext(ctx,
 		"yt-dlp",
+		"--js-runtimes", "node",
 		"--flat-playlist",
 		"--dump-json",
 		searchTarget,

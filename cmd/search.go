@@ -69,6 +69,12 @@ func Search(ctx context.Context, c *cli.Command, storage *models.Storage) error 
 		},
 	})
 
+	downloaded, exists := storage.Downloads.Songs[song.ID]
+	if exists {
+		fmt.Printf("Using downloaded song for %s\n", song.Title)
+		app.Queue.Songs = []models.Download{downloaded}
+	}
+
 	if cached == nil {
 		err = storage.Cache.Add(*searchList, songIdx)
 		if err != nil {
@@ -85,7 +91,7 @@ func Search(ctx context.Context, c *cli.Command, storage *models.Storage) error 
 			fmt.Printf("Playing song (Session %d/%d): %s\n", i+1, repeat, searchList.Results[songIdx].Title)
 		}
 
-		status := app.PlayALL(ctx, storage, "a")
+		status := app.PlayALL(ctx, storage, "d", "a")
 		if status == models.Stopped {
 			break
 		}

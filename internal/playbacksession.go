@@ -76,6 +76,7 @@ func (app *PlaybackSession) Next(ctx context.Context) error {
 		// Stop will trigger the Done channel, unblocking the PlayALL loop,
 		// which will automatically increment CurrentIndex and play the next song.
 		app.Player.Stop()
+		app.Player.Song = app.CurrentSong().Metadata
 	}
 	return nil
 }
@@ -89,6 +90,7 @@ func (app *PlaybackSession) Previous(ctx context.Context) error {
 			app.Queue.CurrentIndex = len(app.Queue.Songs) - 2
 		}
 		app.Player.Stop()
+		app.Player.Song = app.CurrentSong().Metadata
 	}
 	return nil
 }
