@@ -124,6 +124,7 @@ func New(storage *models.Storage) *cli.Command {
 				Name:  "playlist",
 				Usage: "manage playlists",
 				Before: func(ctx context.Context, c *cli.Command) (context.Context, error) {
+					storage.LoadDownloads()
 					return ctx, storage.LoadPlaylists()
 				},
 

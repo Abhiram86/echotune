@@ -3,6 +3,7 @@ package playlist
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/Abhiram86/echotune/internal"
 	"github.com/Abhiram86/echotune/internal/manual"
@@ -39,10 +40,15 @@ func Play(ctx context.Context, c *cli.Command, storage *models.Storage, args []s
 	app := internal.NewPlaybackSession(storage, []models.Download{})
 
 	for _, song := range playlist.Songs {
+		if song.Path == "__SEARCHED__" {
+			if downloaded, exists := storage.Downloads.Songs[song.Metadata.ID]; exists {
+				if _, err := os.Stat(downloaded.Path); err == nil {
+					song.Path = downloaded.Path
+				}
+			}
+		}
 		app.Queue.Songs = append(app.Queue.Songs, song)
 	}
-
-	fmt.Printf("Playing playlist '%s'\n", playlist.Title)
 
 	for i := range orderedArgs {
 		switch orderedArgs[i] {
@@ -53,13 +59,12 @@ func Play(ctx context.Context, c *cli.Command, storage *models.Storage, args []s
 		}
 	}
 
-	for i := range repeat {
-		if repeat > 1 {
-			fmt.Printf("Playing playlist (Session %d/%d): %s\n", i+1, repeat, playlist.Title)
-		}
+	for range repeat {
 		status := app.PlayALL(ctx, storage, "n", "z", "x")
-		if status == models.Stopped {
+		if status == models.Stopped && app.Queue.CurrentIndex >= len(app.Queue.Songs) {
 			app.Queue.CurrentIndex = 0
+		} else if status == models.Stopped {
+			break
 		}
 	}
 

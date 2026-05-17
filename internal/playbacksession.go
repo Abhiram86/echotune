@@ -1,13 +1,12 @@
 package internal
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/Abhiram86/echotune/internal/models"
 	"github.com/Abhiram86/echotune/internal/platform"
+	"github.com/Abhiram86/echotune/internal/tui"
 )
 
 type PlaybackSession struct {
@@ -39,7 +38,6 @@ func (app *PlaybackSession) CurrentSong() models.Download {
 
 func (app *PlaybackSession) Play(ctx context.Context) error {
 	app.Player.Song = app.CurrentSong().Metadata
-	fmt.Printf("Playing song %s\n", app.CurrentSong().Title)
 	if app.CurrentSong().Path == "__SEARCHED__" {
 		return app.Player.PlaySong(ctx, models.Playable{URL: app.CurrentSong().Metadata.URL})
 	}
@@ -55,9 +53,11 @@ func (app *PlaybackSession) PlayALL(ctx context.Context, storage *models.Storage
 			return models.Stopped
 		}
 
-		reader := bufio.NewReader(os.Stdin)
-
-		err = Controls(ctx, app, storage, reader, additional...)
+		var additionalStrs []string
+		for _, ctrl := range additional {
+			additionalStrs = append(additionalStrs, string(ctrl))
+		}
+		err = tui.Controls(ctx, app, app.Player, storage, additionalStrs, DownloadSong)
 		if err != nil {
 			return models.Stopped
 		}

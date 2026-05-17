@@ -3,7 +3,6 @@ package internal
 import (
 	"context"
 	"fmt"
-	"log"
 	"os/exec"
 	"path/filepath"
 	"time"
@@ -22,7 +21,7 @@ func DownloadSong(ctx context.Context, storage *models.Storage, song models.Sear
 		return fmt.Errorf("download is in progress...")
 	}
 	mgr.IsDownloading = true
-	fmt.Println("Downloading song...")
+	// fmt.Println("Downloading song...")
 	mgr.Mu.Unlock()
 
 	go func() {
@@ -57,7 +56,7 @@ func DownloadSong(ctx context.Context, storage *models.Storage, song models.Sear
 		// cmd.Stderr = os.Stderr
 
 		if err := cmd.Run(); err != nil {
-			log.Printf("download failed: %v", err)
+			// log.Printf("download failed: %v", err)
 			return
 		}
 
@@ -70,10 +69,10 @@ func DownloadSong(ctx context.Context, storage *models.Storage, song models.Sear
 
 		err := storage.Downloads.Add(downloaded)
 		if err != nil {
-			log.Printf("failed to add downloaded song: %v", err)
+			// log.Printf("failed to add downloaded song: %v", err)
 		}
 
-		fmt.Println("Download finished on " + storage.Downloads.MediaPath)
+		// fmt.Println("Download finished on " + storage.Downloads.MediaPath)
 	}()
 	return nil
 }

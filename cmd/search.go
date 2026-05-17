@@ -86,13 +86,11 @@ func Search(ctx context.Context, c *cli.Command, storage *models.Storage) error 
 		return err
 	}
 
-	for i := range repeat {
-		if repeat > 1 {
-			fmt.Printf("Playing song (Session %d/%d): %s\n", i+1, repeat, searchList.Results[songIdx].Title)
-		}
-
+	for range repeat {
 		status := app.PlayALL(ctx, storage, "d", "a")
-		if status == models.Stopped {
+		if status == models.Stopped && app.Queue.CurrentIndex >= len(app.Queue.Songs) {
+			app.Queue.CurrentIndex = 0
+		} else if status == models.Stopped {
 			break
 		}
 	}

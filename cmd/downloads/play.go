@@ -87,8 +87,11 @@ func PlayAll(
 
 	for range repeat {
 		status := app.PlayALL(ctx, storage, "n", "z", "a")
-		if status == models.Stopped {
+		if status == models.Stopped && app.Queue.CurrentIndex >= len(app.Queue.Songs) {
 			app.Queue.CurrentIndex = 0
+		} else if status == models.Stopped {
+			// Manually interrupted or an error occurred
+			break
 		}
 	}
 
