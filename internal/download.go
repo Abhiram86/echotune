@@ -12,8 +12,7 @@ import (
 )
 
 func DownloadSong(ctx context.Context, storage *models.Storage, song models.SearchResult, mgr *models.DownloadManager) error {
-	_, exists := storage.Downloads.Songs[song.ID]
-	if exists {
+	if _, exists := storage.Downloads.Songs[song.ID]; exists {
 		return fmt.Errorf("song already downloaded")
 	}
 
@@ -39,7 +38,7 @@ func DownloadSong(ctx context.Context, storage *models.Storage, song models.Sear
 			"%(title)s.%(ext)s",
 		)
 		cmd := exec.CommandContext(
-			context.Background(),
+			ctx,
 			"yt-dlp",
 			"--no-progress",
 			"-x",
@@ -48,6 +47,7 @@ func DownloadSong(ctx context.Context, storage *models.Storage, song models.Sear
 			"--embed-thumbnail",
 			"--embed-metadata",
 			"--convert-thumbnails", "jpg",
+			"--restrict-filenames",
 			"-o",
 			outputPath,
 			song.URL,
@@ -57,7 +57,7 @@ func DownloadSong(ctx context.Context, storage *models.Storage, song models.Sear
 		// cmd.Stderr = os.Stderr
 
 		if err := cmd.Run(); err != nil {
-			fmt.Println(err)
+			log.Printf("download failed: %v", err)
 			return
 		}
 

@@ -136,7 +136,7 @@ func Controls(
 
 			case "q":
 				if player.Cmd.Process != nil {
-					player.Cmd.Process.Signal(os.Interrupt)
+					player.Stop()
 				}
 				return fmt.Errorf("interrupted, user quit")
 

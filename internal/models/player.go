@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -45,15 +46,49 @@ func (p *Player) SetStatus(status PlayerStatus) {
 	p.Status = status
 }
 
-func (p *Player) sendCommand(command string) error {
+func (p *Player) sendCommand(args ...any) error {
 	conn, err := platform.DialIPC(p.SocketPath)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 
-	_, err = conn.Write([]byte(command + "\n"))
+	cmd := map[string]any{
+		"command": args,
+	}
+
+	data, err := json.Marshal(cmd)
+	if err != nil {
+		return err
+	}
+
+	_, err = conn.Write(append(data, '\n'))
 	return err
+}
+
+func waitForSocket(ctx context.Context, path string, timeout time.Duration) error {
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+
+	timeoutTimer := time.NewTimer(timeout)
+	defer timeoutTimer.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+
+		case <-timeoutTimer.C:
+			return fmt.Errorf("timed out waiting for mpv IPC socket")
+
+		case <-ticker.C:
+			conn, err := platform.DialIPC(path)
+			if err == nil {
+				conn.Close()
+				return nil
+			}
+		}
+	}
 }
 
 func (p *Player) PlaySong(ctx context.Context, song Playable) error {
@@ -103,7 +138,9 @@ func (p *Player) PlaySong(ctx context.Context, song Playable) error {
 	}()
 
 	// Wait a bit for IPC socket/pipe to exist
-	time.Sleep(300 * time.Millisecond)
+	if err := waitForSocket(ctx, p.SocketPath, 2*time.Second); err != nil {
+		return err
+	}
 
 	p.SetStatus(Playing)
 
@@ -120,11 +157,11 @@ func (p *Player) TogglePlay() error {
 
 	if p.Status == Playing {
 		p.Status = Paused
-		return p.sendCommand("cycle pause")
+		return p.sendCommand("cycle", "pause")
 	}
 
 	p.Status = Playing
-	return p.sendCommand("cycle pause")
+	return p.sendCommand("cycle", "pause")
 }
 
 func (p *Player) Stop() error {
@@ -141,5 +178,5 @@ func (p *Player) Stop() error {
 }
 
 func (p *Player) Seek(second int) error {
-	return p.sendCommand(fmt.Sprintf("seek %d", second))
+	return p.sendCommand("seek", second)
 }

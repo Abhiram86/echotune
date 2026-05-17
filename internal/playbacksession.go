@@ -38,6 +38,7 @@ func (app *PlaybackSession) CurrentSong() models.Download {
 }
 
 func (app *PlaybackSession) Play(ctx context.Context) error {
+	app.Player.Song = app.CurrentSong().Metadata
 	fmt.Printf("Playing song %s\n", app.CurrentSong().Title)
 	if app.CurrentSong().Path == "__SEARCHED__" {
 		return app.Player.PlaySong(ctx, models.Playable{URL: app.CurrentSong().Metadata.URL})
@@ -83,7 +84,6 @@ func (app *PlaybackSession) Next(ctx context.Context) error {
 		// Stop will trigger the Done channel, unblocking the PlayALL loop,
 		// which will automatically increment CurrentIndex and play the next song.
 		app.Player.Stop()
-		app.Player.Song = app.CurrentSong().Metadata
 	}
 	return nil
 }
@@ -97,7 +97,6 @@ func (app *PlaybackSession) Previous(ctx context.Context) error {
 			app.Queue.CurrentIndex = len(app.Queue.Songs) - 2
 		}
 		app.Player.Stop()
-		app.Player.Song = app.CurrentSong().Metadata
 	}
 	return nil
 }

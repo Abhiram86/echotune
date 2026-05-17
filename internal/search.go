@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"time"
 
@@ -36,6 +37,8 @@ func SearchQuery(ctx context.Context, query string, storage *models.Storage, len
 			_ = cmd.Process.Kill()
 		}
 	}()
+
+	cmd.Stderr = os.Stderr
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
