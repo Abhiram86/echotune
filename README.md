@@ -73,7 +73,7 @@ Easily clear your cache, history, downloads, or all saved data via the `clear` c
 
 EchoTune uses a `PlaybackSession` model to unify the player state and song queue across all commands. This allows features like "Next", "Previous", and repeat to work consistently whether you are playing a single searched song, a downloaded track, or an entire playlist.
 
-Playlists are saved as individual JSON files under `~/.local/share/echotune/playlists/`, and the queue resolves downloaded songs to local files automatically (O(1) lookup) before falling back to streaming.
+Playlists and application data are saved in standard OS-specific directories (e.g., `~/.local/share/echotune` on Linux, `AppData\Roaming\echotune` on Windows, and `Library/Application Support/echotune` on macOS). The queue resolves downloaded songs to local files automatically (O(1) lookup) before falling back to streaming.
 
 ## Further Improvements
 
