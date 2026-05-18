@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"os/signal"
 
 	"github.com/Abhiram86/echotune/cmd"
 	"github.com/Abhiram86/echotune/internal/models"
@@ -22,7 +23,10 @@ func main() {
 	// 	}
 	// }()
 
-	if err := cmd.New(&storage).Run(context.Background(), os.Args); err != nil {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+
+	if err := cmd.New(&storage).Run(ctx, os.Args); err != nil {
 		log.Fatal(err)
 	}
 }

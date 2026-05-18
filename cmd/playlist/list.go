@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Abhiram86/echotune/internal"
 	"github.com/Abhiram86/echotune/internal/models"
 	"github.com/Abhiram86/echotune/internal/operations"
 	"github.com/urfave/cli/v3"
@@ -13,7 +14,7 @@ func List(ctx context.Context, c *cli.Command, storage *models.Storage) error {
 	query := c.Args().First()
 
 	if query != "" {
-		playlist, err := searchByQuery(ctx, storage, query)
+		playlist, err := internal.FindPlaylistByTitle(storage, query)
 		if err != nil {
 			return err
 		}
@@ -35,6 +36,7 @@ func List(ctx context.Context, c *cli.Command, storage *models.Storage) error {
 		return nil
 	}
 
+	storage.LoadPlaylists()
 	playlistsMap := storage.Playlists.Playlists
 	playlists := make([]models.Playlist, 0, len(playlistsMap))
 

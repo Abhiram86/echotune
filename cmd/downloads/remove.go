@@ -11,13 +11,13 @@ import (
 )
 
 func removeByIndex(ctx context.Context, c *cli.Command, storage *models.Storage, idx int) error {
-	songs := getSortedDownloads(storage)
+	songs := internal.SortedDownloads(storage)
 	if idx < 1 || idx > len(songs) {
 		return fmt.Errorf("index out of range")
 	}
 
 	if internal.Confirm(fmt.Sprintf("do you want to remove %s?", songs[idx-1].Title)) {
-		err := storage.Downloads.Remove(songs[idx-1])
+		err := storage.Downloads.Remove(storage, songs[idx-1])
 		if err != nil {
 			return err
 		}
@@ -27,13 +27,13 @@ func removeByIndex(ctx context.Context, c *cli.Command, storage *models.Storage,
 }
 
 func RemoveByTitle(ctx context.Context, c *cli.Command, storage *models.Storage, query string) error {
-	downloaded, err := songByQuery(ctx, storage, query)
+	downloaded, err := internal.FindDownloadByTitle(storage, query)
 	if err != nil {
 		return err
 	}
 
 	if internal.Confirm(fmt.Sprintf("do you want to remove %s?", downloaded.Title)) {
-		err := storage.Downloads.Remove(*downloaded)
+		err := storage.Downloads.Remove(storage, *downloaded)
 		if err != nil {
 			return err
 		}

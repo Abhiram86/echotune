@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -14,7 +13,7 @@ import (
 
 func SearchQuery(ctx context.Context, query string, storage *models.Storage, length string) (*models.CachedSong, *models.SearchList, error) {
 	// check cache
-	cached, ok := storage.Cache.Get(query)
+	cached, ok := storage.Cache.Get(storage, query)
 	if ok {
 		return cached, nil, nil
 	}
@@ -51,12 +50,15 @@ func SearchQuery(ctx context.Context, query string, storage *models.Storage, len
 
 	var results []models.SearchResult
 
-	scanner := bufio.NewScanner(stdout)
+	decoder := json.NewDecoder(stdout)
 
-	for scanner.Scan() {
+	for {
 		item := models.SearchResult{}
 
-		if err := json.Unmarshal(scanner.Bytes(), &item); err != nil {
+		if err := decoder.Decode(&item); err != nil {
+			if err.Error() == "EOF" {
+				break
+			}
 			return nil, nil, fmt.Errorf("failed to unmarshal yt-dlp output: %w", err)
 		}
 
@@ -71,10 +73,6 @@ func SearchQuery(ctx context.Context, query string, storage *models.Storage, len
 			Channel:    item.Channel,
 			UploadDate: item.UploadDate,
 		})
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, nil, err
 	}
 
 	if err := cmd.Wait(); err != nil {

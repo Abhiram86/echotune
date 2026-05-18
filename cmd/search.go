@@ -1,16 +1,14 @@
 package cmd
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"os"
 	"strconv"
 
 	"github.com/Abhiram86/echotune/internal"
 	"github.com/Abhiram86/echotune/internal/input"
 	"github.com/Abhiram86/echotune/internal/models"
-	"github.com/Abhiram86/echotune/internal/ui"
+	"github.com/Abhiram86/echotune/internal/tui"
 	"github.com/urfave/cli/v3"
 )
 
@@ -40,23 +38,18 @@ func Search(ctx context.Context, c *cli.Command, storage *models.Storage) error 
 		fmt.Printf("Using cached results for %s\n", query)
 	}
 
-	if !c.Bool("auto") {
-		err = ui.PrintSearchResults(ctx, searchList.Results)
-		if err != nil {
-			return err
-		}
-	}
-
 	var songIdx int
 
-	reader := bufio.NewReader(os.Stdin)
 	if c.Bool("auto") {
 		songIdx, err = input.SelectBestSong(searchList)
 		if err != nil {
 			return err
 		}
 	} else {
-		songIdx, err = input.ReadSelection(reader, len(searchList.Results))
+		songIdx, err = tui.SearchSelection(searchList.Results)
+		if err != nil {
+			return err
+		}
 	}
 
 	song := searchList.Results[songIdx]
@@ -69,6 +62,7 @@ func Search(ctx context.Context, c *cli.Command, storage *models.Storage) error 
 		},
 	})
 
+	storage.LoadDownloads()
 	downloaded, exists := storage.Downloads.Songs[song.ID]
 	if exists {
 		fmt.Printf("Using downloaded song for %s\n", song.Title)
@@ -76,14 +70,10 @@ func Search(ctx context.Context, c *cli.Command, storage *models.Storage) error 
 	}
 
 	if cached == nil {
-		err = storage.Cache.Add(*searchList, songIdx)
+		err = storage.Cache.Add(storage, *searchList, songIdx)
 		if err != nil {
 			return err
 		}
-	}
-	err = storage.History.Add(searchList.Results[songIdx])
-	if err != nil {
-		return err
 	}
 
 	for range repeat {

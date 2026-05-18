@@ -3,7 +3,6 @@ package playlist
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/Abhiram86/echotune/internal"
 	"github.com/Abhiram86/echotune/internal/manual"
@@ -12,15 +11,8 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-func searchByQuery(ctx context.Context, storage *models.Storage, query string) (*models.Playlist, error) {
-	playlist, found := internal.FindBestMatch(storage.Playlists.Playlists, func(p models.Playlist) string {
-		return p.Title
-	}, query)
-
-	if !found {
-		return nil, fmt.Errorf("no matches found for '%s'", query)
-	}
-	return &playlist, nil
+func searchByQuery(_ context.Context, storage *models.Storage, query string) (*models.Playlist, error) {
+	return internal.FindPlaylistByTitle(storage, query)
 }
 
 func Play(ctx context.Context, c *cli.Command, storage *models.Storage, args []string) error {
@@ -40,14 +32,8 @@ func Play(ctx context.Context, c *cli.Command, storage *models.Storage, args []s
 	app := internal.NewPlaybackSession(storage, []models.Download{})
 
 	for _, song := range playlist.Songs {
-		if song.Path == "__SEARCHED__" {
-			if downloaded, exists := storage.Downloads.Songs[song.Metadata.ID]; exists {
-				if _, err := os.Stat(downloaded.Path); err == nil {
-					song.Path = downloaded.Path
-				}
-			}
-		}
-		app.Queue.Songs = append(app.Queue.Songs, song)
+		resolved := internal.ResolvedDownload(storage, &song)
+		app.Queue.Songs = append(app.Queue.Songs, *resolved)
 	}
 
 	for i := range orderedArgs {

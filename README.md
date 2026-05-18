@@ -4,70 +4,89 @@ EchoTune is a fast, terminal-based music player and downloader. It allows you to
 
 ## Prerequisites & Installation
 
-Currently, EchoTune is supported on **Linux, macOS, and Windows**. It relies on the following external dependencies to fetch and play audio:
+For full details on installing EchoTune and its required dependencies (`mpv` and `yt-dlp`) for Linux, macOS, or Windows, please see our detailed **[Installation Guide](installation/install.md)**.
 
-1. **`yt-dlp`**: Required for searching and downloading audio from YouTube.
-2. **`mpv`**: Required for playing the audio streams in the background.
+## How to Use / Commands Documentation
 
-Ensure both are installed and available in your system's `PATH`.
+EchoTune uses a simple CLI interface. Below is a detailed explanation of each command.
 
-To install EchoTune, you need Go installed on your system. Run the following command:
-
-```bash
-go install github.com/Abhiram86/echotune@latest
-```
-
-Alternatively, you can clone the repository and build it manually:
-```bash
-git clone https://github.com/Abhiram86/echotune.git
-cd echotune
-go build -o et main.go
-```
-
-## Features
-
-### Search & Play
+### `search`
 Search for any song on YouTube and instantly play it in the terminal.
 ```bash
 ./et search "song name"
 ```
-- **Auto-Play:** Automatically pick and play the most relevant result (`--auto` or `-a`).
-- **Limit & Repeat:** Control the number of results (`--limit`) or repeat playback (`--repeat`).
+- **Interactive TUI:** By default, displays a beautiful terminal UI where you can navigate search results with arrow keys/`n`/`b` and press `Enter` to play.
+- **Auto-Play:** Automatically pick and play the most relevant result by passing `--auto` or `-a`.
+- **Limit & Repeat:** Control the maximum number of results to fetch (`--limit` or `-l`) or repeat the playback (`--repeat` or `-r`).
 
-### Downloads Management
-- **Download:** Press `d` while a song is playing to download it in high-quality Opus format.
-- **List:** View all downloaded songs with sorting by date or title, and limit output.
-- **Play:** Play a downloaded song by index or title. Supports pipeline arguments for full playlist control.
-  ```bash
-  ./et downloads play -l 5 -sh
-  ```
-- **Remove:** Remove downloaded songs by index or title.
-
-### Playlists
-Create, manage, and play custom playlists of downloaded songs.
-- **Add to Playlist:** While a song is playing, press `a` to add it to a playlist.
-- **List:** View all saved playlists with sorting and limit options.
-- **Play:** Play songs in a playlist with shuffle, limit, and repeat support.
-- **Remove:** Remove a whole playlist or a specific song from a playlist.
-- **Clear:** Delete all playlists with confirmation.
-
-### History & Caching
-- **History:** View recently played songs with reverse chronological order and limit.
-- **Cache:** Search results are cached with LRU eviction for faster repeat lookups.
-
-### Playback Controls
-- **Pause/Resume:** Toggle playback with `p`.
-- **Seek:** Skip forward/backward by 5 seconds with `f` and `b`.
-- **Skip Tracks:** Next (`n`) and Previous (`v`) support for queue and playlist playback.
-- **Quit:** Stop playback and return to the shell with `q`.
-
-### Data Management
-Easily clear your cache, history, downloads, or all saved data via the `clear` command.
+### `history`
+Show your recently played songs.
 ```bash
-./et clear all       # Clear everything with confirmation
-./et clear cache     # Clear search cache
-./et clear history   # Clear playback history
+./et history
 ```
+- **Limit:** Use `--limit` or `-l` to restrict the number of history items shown.
+
+### `downloads`
+Manage and play your downloaded songs.
+- **`list`:** View all downloaded songs.
+  ```bash
+  ./et downloads list
+  ```
+  - Options: `--sort` or `-s` (sort by download date instead of title), `--limit` or `-l`.
+- **`play`:** Play a specific downloaded song by its name or index, or play all.
+  ```bash
+  ./et downloads play "song name"
+  ./et downloads play 1
+  ./et downloads play       # Plays all downloads
+  ```
+  - Options: `--shuffle` or `-sh` (play in random order), `--limit` or `-l`, `--repeat` or `-r`.
+- **`remove`:** Remove a downloaded song by index or name.
+  ```bash
+  ./et downloads remove "song name"
+  ```
+
+### `playlist`
+Create, manage, and play custom playlists of downloaded songs. You can add songs to playlists while they are playing using the `a` hotkey in the player.
+- **`list`:** View all saved playlists.
+  ```bash
+  ./et playlist list
+  ```
+- **`play`:** Play all songs in a specific playlist.
+  ```bash
+  ./et playlist play "playlist name"
+  ```
+  - Options: `--shuffle` or `-sh`, `--limit` or `-l`, `--repeat` or `-r`.
+- **`remove`:** Remove an entire playlist, or a specific song from a playlist.
+  ```bash
+  ./et playlist remove "playlist name"
+  ./et playlist remove "playlist name" "song name"
+  ```
+- **`clear`:** Delete all playlists with a confirmation prompt.
+  ```bash
+  ./et playlist clear
+  ```
+
+### `clear`
+Easily manage your local application data.
+```bash
+./et clear cache     # Clear search cache (speeds up repeat searches)
+./et clear history   # Clear your playback history
+./et clear all       # Wipes everything: cache, history, downloads, and playlists
+```
+
+## Playback Controls
+
+While a song is actively playing, EchoTune uses a dynamic Bubble Tea TUI. You can control playback instantly with the following hotkeys:
+
+- `Space` or `p`: Toggle Play/Pause
+- `k` or `Right Arrow`: Seek forward 5 seconds
+- `j` or `Left Arrow`: Seek backward 5 seconds
+- `n` or `Up Arrow`: Skip to the next track (in a playlist/queue)
+- `b` or `Down Arrow`: Skip to the previous track
+- `d`: Download the currently playing song in the background (saved as high-quality Opus)
+- `a`: Add the current song to a playlist
+- `x`: Remove the current song from a playlist
+- `q` or `Esc`: Quit the player
 
 ## Architecture
 
@@ -75,10 +94,9 @@ EchoTune uses a `PlaybackSession` model to unify the player state and song queue
 
 Playlists and application data are saved in standard OS-specific directories (e.g., `~/.local/share/echotune` on Linux, `AppData\Roaming\echotune` on Windows, and `Library/Application Support/echotune` on macOS). The queue resolves downloaded songs to local files automatically (O(1) lookup) before falling back to streaming.
 
-## Further Improvements
+## Potential Improvements
 
-EchoTune is still in active development. Here are some planned improvements for the future:
+EchoTune works great for its current scope. While not intended to be a massive "full" application, here are some *potential* improvements for the future:
 
-- **UI Overhaul:** Transitioning from a raw CLI interface to a rich, interactive terminal UI using the [Bubble Tea](https://github.com/charmbracelet/bubbletea) framework (once the core CLI features are finalized and polished).
 - **Playlist Queue Management:** Reordering songs within a playlist queue during playback.
 - **Equalizer & Audio Settings:** Basic audio filtering options via mpv integration.

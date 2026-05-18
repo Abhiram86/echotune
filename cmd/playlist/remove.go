@@ -16,14 +16,14 @@ func Remove(ctx context.Context, c *cli.Command, storage *models.Storage) error 
 
 	playlistTitle := c.Args().First()
 
-	playlist, err := searchByQuery(ctx, storage, playlistTitle)
+	playlist, err := internal.FindPlaylistByTitle(storage, playlistTitle)
 	if err != nil {
 		return err
 	}
 
 	if c.Args().Len() < 2 {
 		if internal.Confirm(fmt.Sprintf("do you want to remove %s?", playlist.Title)) {
-			return storage.Playlists.RemovePlayList(*playlist)
+			return storage.Playlists.RemovePlayList(storage, *playlist)
 		}
 		return nil
 	}
@@ -37,7 +37,7 @@ func Remove(ctx context.Context, c *cli.Command, storage *models.Storage) error 
 	}
 
 	if internal.Confirm(fmt.Sprintf("do you want to remove %s from %s?", bestMatchedSong.Title, playlist.Title)) {
-		return storage.Playlists.RemoveSong(playlist.Title, bestMatchedSong)
+		return storage.Playlists.RemoveSong(storage, playlist.Title, bestMatchedSong)
 	}
 
 	return nil

@@ -67,7 +67,7 @@ func DownloadSong(ctx context.Context, storage *models.Storage, song models.Sear
 			Timestamp: time.Now(),
 		}
 
-		err := storage.Downloads.Add(downloaded)
+		err := storage.Downloads.Add(storage, downloaded)
 		if err != nil {
 			// log.Printf("failed to add downloaded song: %v", err)
 		}

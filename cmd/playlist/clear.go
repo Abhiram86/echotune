@@ -22,7 +22,7 @@ func Clear(ctx context.Context, c *cli.Command, storage *models.Storage) error {
 	}
 
 	if confirm("This will delete all playlists. Are you sure?") {
-		if err := storage.Playlists.ClearAll(); err != nil {
+		if err := storage.Playlists.ClearAll(storage); err != nil {
 			return err
 		}
 		fmt.Println("Successfully cleared playlists.")

@@ -3,7 +3,6 @@ package models
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,6 +25,7 @@ type Storage struct {
 type Cache struct {
 	CachePath string
 	Songs     map[string]CachedSong
+	loaded    bool
 }
 
 type CachedSong struct {
@@ -37,6 +37,7 @@ type CachedSong struct {
 type History struct {
 	HistoryPath string
 	Songs       []SearchResult
+	loaded      bool
 }
 
 type Downloads struct {
@@ -44,6 +45,7 @@ type Downloads struct {
 	DownloadsPath string
 	MediaPath     string
 	Songs         map[string]Download
+	loaded        bool
 }
 
 type Download struct {
@@ -67,6 +69,7 @@ type Playlist struct {
 type Playlists struct {
 	PlaylistsPath string
 	Playlists     map[string]Playlist
+	loaded        bool
 }
 
 func loadJSON[T any](path string, target *T, fallback func()) error {
@@ -79,8 +82,7 @@ func loadJSON[T any](path string, target *T, fallback func()) error {
 	}
 
 	if err := json.Unmarshal(data, target); err != nil {
-		log.Println("error unmarshalling", path+":", err)
-		fallback()
+		return fmt.Errorf("error unmarshalling %s: %w", path, err)
 	}
 
 	return nil
@@ -144,36 +146,94 @@ func (s *Storage) Mount() error {
 }
 
 func (s *Storage) LoadCache() error {
-	return loadJSON(
+	if s.Cache.loaded {
+		return nil
+	}
+	err := loadJSON(
 		s.Cache.CachePath,
 		&s.Cache,
 		func() {
 			s.Cache.Songs = make(map[string]CachedSong)
 		},
 	)
+	s.Cache.loaded = true
+	return err
 }
 
 func (s *Storage) LoadHistory() error {
-	return loadJSON(
+	if s.History.loaded {
+		return nil
+	}
+	err := loadJSON(
 		s.History.HistoryPath,
 		&s.History,
 		func() {
 			s.History.Songs = make([]SearchResult, 0)
 		},
 	)
+	s.History.loaded = true
+	return err
+}
+
+func (s *Storage) sweepPartialDownloads() error {
+	s.Downloads.mu.Lock()
+	songIDs := make(map[string]bool, len(s.Downloads.Songs))
+	for id := range s.Downloads.Songs {
+		songIDs[id] = true
+	}
+	s.Downloads.mu.Unlock()
+
+	files, err := os.ReadDir(s.Downloads.MediaPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	for _, file := range files {
+		if !file.IsDir() {
+			continue
+		}
+		id := file.Name()
+		if _, exists := songIDs[id]; !exists {
+			err = os.RemoveAll(filepath.Join(s.Downloads.MediaPath, id))
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func (s *Storage) LoadDownloads() error {
-	return loadJSON(
+	s.Downloads.mu.Lock()
+	if s.Downloads.loaded {
+		s.Downloads.mu.Unlock()
+		return nil
+	}
+	err := loadJSON(
 		s.Downloads.DownloadsPath,
 		&s.Downloads,
 		func() {
 			s.Downloads.Songs = make(map[string]Download)
 		},
 	)
+	s.Downloads.loaded = true
+	s.Downloads.mu.Unlock()
+
+	if err != nil {
+		return err
+	}
+
+	return s.sweepPartialDownloads()
 }
 
 func (s *Storage) LoadPlaylists() error {
+	if s.Playlists.loaded {
+		return nil
+	}
 	files, err := os.ReadDir(s.Playlists.PlaylistsPath)
 	if err != nil {
 		return err
@@ -214,10 +274,12 @@ func (s *Storage) LoadPlaylists() error {
 		s.Playlists.Playlists[name] = playlist
 	}
 
+	s.Playlists.loaded = true
 	return nil
 }
 
-func (c *Cache) Clear() error {
+func (c *Cache) Clear(s *Storage) error {
+	s.LoadCache()
 	if _, err := os.Stat(c.CachePath); err == nil {
 		err := os.Remove(c.CachePath)
 		if err != nil {
@@ -228,7 +290,8 @@ func (c *Cache) Clear() error {
 	return nil
 }
 
-func (h *History) Clear() error {
+func (h *History) Clear(s *Storage) error {
+	s.LoadHistory()
 	if _, err := os.Stat(h.HistoryPath); err == nil {
 		err := os.Remove(h.HistoryPath)
 		if err != nil {
@@ -239,7 +302,8 @@ func (h *History) Clear() error {
 	return nil
 }
 
-func (d *Downloads) Clear() error {
+func (d *Downloads) Clear(s *Storage) error {
+	s.LoadDownloads()
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if _, err := os.Stat(d.DownloadsPath); err == nil {
@@ -259,17 +323,17 @@ func (d *Downloads) Clear() error {
 }
 
 func (s *Storage) ClearAll() error {
-	if err := s.Cache.Clear(); err != nil {
+	if err := s.Cache.Clear(s); err != nil {
 		return err
 	}
-	if err := s.History.Clear(); err != nil {
+	if err := s.History.Clear(s); err != nil {
 		return err
 	}
-	if err := s.Downloads.Clear(); err != nil {
+	if err := s.Downloads.Clear(s); err != nil {
 		return err
 	}
 
-	return s.Playlists.ClearAll()
+	return s.Playlists.ClearAll(s)
 }
 
 func saveToFile(path string, v any) error {
@@ -281,7 +345,8 @@ func saveToFile(path string, v any) error {
 	return os.WriteFile(path, data, 0644)
 }
 
-func (c *Cache) Add(songs SearchList, selectedIndex int) error {
+func (c *Cache) Add(s *Storage, songs SearchList, selectedIndex int) error {
+	s.LoadCache()
 	if _, exists := c.Songs[songs.Query]; !exists && len(c.Songs) >= MaxCacheSize {
 		c.evictOldest()
 	}
@@ -293,7 +358,8 @@ func (c *Cache) Add(songs SearchList, selectedIndex int) error {
 	return saveToFile(c.CachePath, c)
 }
 
-func (c *Cache) Get(query string) (*CachedSong, bool) {
+func (c *Cache) Get(s *Storage, query string) (*CachedSong, bool) {
+	s.LoadCache()
 	song, ok := c.Songs[query]
 	if ok {
 		song.Timestamp = time.Now()
@@ -320,7 +386,8 @@ func (c *Cache) evictOldest() {
 	}
 }
 
-func (h *History) Add(song SearchResult) error {
+func (h *History) Add(s *Storage, song SearchResult) error {
+	s.LoadHistory()
 	h.Songs = append(h.Songs, song)
 
 	if len(h.Songs) > MaxHistory {
@@ -330,7 +397,8 @@ func (h *History) Add(song SearchResult) error {
 	return saveToFile(h.HistoryPath, h)
 }
 
-func (h *History) Get(idx int) (SearchResult, bool) {
+func (h *History) Get(s *Storage, idx int) (SearchResult, bool) {
+	s.LoadHistory()
 	if idx < 0 || idx >= len(h.Songs) {
 		return SearchResult{}, false
 	}
@@ -338,20 +406,22 @@ func (h *History) Get(idx int) (SearchResult, bool) {
 	return h.Songs[idx], true
 }
 
-func (d *Downloads) Add(song Download) error {
+func (d *Downloads) Add(s *Storage, song Download) error {
+	s.LoadDownloads()
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.Songs[song.Metadata.ID] = song
 	return saveToFile(d.DownloadsPath, d)
 }
 
-func (d *Downloads) Remove(song Download) error {
+func (d *Downloads) Remove(s *Storage, song Download) error {
+	s.LoadDownloads()
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	id := song.Metadata.ID
-	if s, exists := d.Songs[id]; exists {
+	if s_download, exists := d.Songs[id]; exists {
 		delete(d.Songs, id)
-		err := os.RemoveAll(s.Path)
+		err := os.RemoveAll(s_download.Path)
 		if err != nil {
 			return err
 		}
@@ -360,9 +430,10 @@ func (d *Downloads) Remove(song Download) error {
 	return nil
 }
 
-func (p *Playlists) ClearAll() error {
+func (p *Playlists) ClearAll(s *Storage) error {
+	s.LoadPlaylists()
 	for _, playlist := range p.Playlists {
-		err := p.RemoveOne(playlist.Title)
+		err := p.RemoveOne(s, playlist.Title)
 		if err != nil {
 			return err
 		}
@@ -371,7 +442,8 @@ func (p *Playlists) ClearAll() error {
 	return nil
 }
 
-func (p *Playlists) SaveOne(title string) error {
+func (p *Playlists) SaveOne(s *Storage, title string) error {
+	s.LoadPlaylists()
 	playlist, exists := p.Playlists[title]
 	if !exists {
 		return fmt.Errorf("playlist not found")
@@ -380,7 +452,8 @@ func (p *Playlists) SaveOne(title string) error {
 	return saveToFile(path, playlist)
 }
 
-func (p *Playlists) RemoveOne(title string) error {
+func (p *Playlists) RemoveOne(s *Storage, title string) error {
+	s.LoadPlaylists()
 	_, exists := p.Playlists[title]
 	if !exists {
 		return fmt.Errorf("playlist not found")
@@ -389,7 +462,8 @@ func (p *Playlists) RemoveOne(title string) error {
 	return os.Remove(filepath.Join(p.PlaylistsPath, title+".json"))
 }
 
-func (p *Playlists) AddPlayList(playlist Playlist) error {
+func (p *Playlists) AddPlayList(s *Storage, playlist Playlist) error {
+	s.LoadPlaylists()
 	_, exists := p.Playlists[playlist.Title]
 	if exists {
 		return fmt.Errorf("playlist with title '%s' already exists", playlist.Title)
@@ -398,20 +472,23 @@ func (p *Playlists) AddPlayList(playlist Playlist) error {
 	return nil
 }
 
-func (p *Playlists) RemovePlayList(playlist Playlist) error {
+func (p *Playlists) RemovePlayList(s *Storage, playlist Playlist) error {
+	s.LoadPlaylists()
 	_, exists := p.Playlists[playlist.Title]
 	if !exists {
 		return fmt.Errorf("playlist with title '%s' does not exist", playlist.Title)
 	}
-	return p.RemoveOne(playlist.Title)
+	return p.RemoveOne(s, playlist.Title)
 }
 
-func (p *Playlists) Get(title string) (*Playlist, bool) {
+func (p *Playlists) Get(s *Storage, title string) (*Playlist, bool) {
+	s.LoadPlaylists()
 	playlist, exists := p.Playlists[title]
 	return &playlist, exists
 }
 
-func (p *Playlists) AddSong(title string, song Download) error {
+func (p *Playlists) AddSong(s *Storage, title string, song Download) error {
+	s.LoadPlaylists()
 	playlist, exists := p.Playlists[title]
 	if !exists {
 		return fmt.Errorf("playlist not found")
@@ -421,11 +498,12 @@ func (p *Playlists) AddSong(title string, song Download) error {
 		return fmt.Errorf("song with id '%s' already exists in playlist '%s'", song.Metadata.ID, title)
 	}
 	p.Playlists[title] = playlist
-	p.SaveOne(title)
+	p.SaveOne(s, title)
 	return nil
 }
 
-func (p *Playlists) RemoveSong(title string, song Download) error {
+func (p *Playlists) RemoveSong(s *Storage, title string, song Download) error {
+	s.LoadPlaylists()
 	playlist, exists := p.Playlists[title]
 	if !exists {
 		return fmt.Errorf("playlist not found")
@@ -435,7 +513,7 @@ func (p *Playlists) RemoveSong(title string, song Download) error {
 		return fmt.Errorf("song with id '%s' does not exist in playlist '%s'", song.Metadata.ID, title)
 	}
 	p.Playlists[title] = playlist
-	p.SaveOne(title)
+	p.SaveOne(s, title)
 	return nil
 }
 

@@ -46,7 +46,7 @@ func (app *PlaybackSession) Play(ctx context.Context) error {
 
 func (app *PlaybackSession) PlayALL(ctx context.Context, storage *models.Storage, additional ...Control) models.PlayerStatus {
 	for app.Queue.CurrentIndex >= 0 && app.Queue.CurrentIndex < len(app.Queue.Songs) {
-		storage.History.Add(app.CurrentSong().Metadata)
+		storage.History.Add(storage, app.CurrentSong().Metadata)
 		err := app.Play(ctx)
 		if err != nil {
 			fmt.Printf("playback error: %v\n", err)
@@ -103,22 +103,22 @@ func (app *PlaybackSession) Previous(ctx context.Context) error {
 
 func (app *PlaybackSession) AddToPlaylist(ctx context.Context, storage *models.Storage, playlistTitle string) error {
 	song := app.CurrentSong()
-	_, exists := storage.Playlists.Get(playlistTitle)
+	_, exists := storage.Playlists.Get(storage, playlistTitle)
 	if !exists {
-		app.Playlists.AddPlayList(models.Playlist{
+		app.Playlists.AddPlayList(storage, models.Playlist{
 			Title: playlistTitle,
 			Songs: make(map[string]models.Download, 0),
 		})
-		return app.Playlists.AddSong(playlistTitle, song)
+		return app.Playlists.AddSong(storage, playlistTitle, song)
 	}
-	return storage.Playlists.AddSong(playlistTitle, song)
+	return storage.Playlists.AddSong(storage, playlistTitle, song)
 }
 
 func (app *PlaybackSession) RemoveFromPlaylist(ctx context.Context, storage *models.Storage, playlistTitle string) error {
 	song := app.CurrentSong()
-	_, exists := storage.Playlists.Get(playlistTitle)
+	_, exists := storage.Playlists.Get(storage, playlistTitle)
 	if !exists {
 		return fmt.Errorf("playlist '%s' does not exist", playlistTitle)
 	}
-	return app.Playlists.RemoveSong(playlistTitle, song)
+	return app.Playlists.RemoveSong(storage, playlistTitle, song)
 }

@@ -10,6 +10,7 @@ import (
 )
 
 func List(ctx context.Context, c *cli.Command, storage *models.Storage) error {
+	storage.LoadDownloads()
 	songs := operations.ToSortedSlice(storage.Downloads.Songs, func(a, b *models.Download) bool {
 		if c.Bool("sort") {
 			return a.Timestamp.Before(b.Timestamp)

@@ -16,6 +16,10 @@ func History(ctx context.Context, c *cli.Command, storage *models.Storage) error
 		maxLimit = c.Int("limit")
 	}
 
+	if err := storage.LoadHistory(); err != nil {
+		return err
+	}
+
 	songs := storage.History.Songs
 	if len(songs) == 0 {
 		fmt.Println("No history found.")

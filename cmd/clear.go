@@ -26,13 +26,13 @@ func Clear(ctx context.Context, c *cli.Command, storage *models.Storage) error {
 			fmt.Println("Aborted.")
 		}
 	case "cache":
-		if err := storage.Cache.Clear(); err != nil {
+		if err := storage.Cache.Clear(storage); err != nil {
 			return err
 		}
 		fmt.Println("Successfully cleared cache.")
 	case "history":
 		if internal.Confirm("Are you sure you want to clear your playback history?") {
-			if err := storage.History.Clear(); err != nil {
+			if err := storage.History.Clear(storage); err != nil {
 				return err
 			}
 			fmt.Println("Successfully cleared history.")

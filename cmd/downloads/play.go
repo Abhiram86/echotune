@@ -13,20 +13,11 @@ import (
 )
 
 func getSortedDownloads(storage *models.Storage) []models.Download {
-	return operations.ToSortedSlice(storage.Downloads.Songs, func(a, b *models.Download) bool {
-		return a.Title < b.Title
-	})
+	return internal.SortedDownloads(storage)
 }
 
 func songByQuery(ctx context.Context, storage *models.Storage, query string) (*models.Download, error) {
-	song, found := internal.FindBestMatch(storage.Downloads.Songs, func(d models.Download) string {
-		return d.Title
-	}, query)
-
-	if !found {
-		return nil, fmt.Errorf("no matches found for '%s'", query)
-	}
-	return &song, nil
+	return internal.FindDownloadByTitle(storage, query)
 }
 
 func Play(

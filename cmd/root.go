@@ -38,10 +38,6 @@ func New(storage *models.Storage) *cli.Command {
 					},
 				},
 				Action: func(ctx context.Context, c *cli.Command) error {
-					storage.LoadCache()
-					storage.LoadHistory()
-					storage.LoadDownloads()
-					storage.LoadPlaylists()
 					return Search(ctx, c, storage)
 				},
 			},
@@ -56,16 +52,12 @@ func New(storage *models.Storage) *cli.Command {
 					},
 				},
 				Action: func(ctx context.Context, c *cli.Command) error {
-					storage.LoadHistory()
 					return History(ctx, c, storage)
 				},
 			},
 			{
 				Name:  "downloads",
 				Usage: "manage the downloaded songs",
-				Before: func(ctx context.Context, c *cli.Command) (context.Context, error) {
-					return ctx, storage.LoadDownloads()
-				},
 
 				Commands: []*cli.Command{
 					{
@@ -123,10 +115,6 @@ func New(storage *models.Storage) *cli.Command {
 			{
 				Name:  "playlist",
 				Usage: "manage playlists",
-				Before: func(ctx context.Context, c *cli.Command) (context.Context, error) {
-					storage.LoadDownloads()
-					return ctx, storage.LoadPlaylists()
-				},
 
 				Commands: []*cli.Command{
 					{

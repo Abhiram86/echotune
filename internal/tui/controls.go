@@ -42,6 +42,8 @@ func getMpvProperty(socketPath string, name string) (float64, error) {
 		return 0, err
 	}
 
+	conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+
 	var resp struct {
 		Data  *float64 `json:"data"`
 		Error string   `json:"error"`
@@ -209,10 +211,11 @@ func (m playerModel) normalView() string {
 
 	statusIcon := "▶"
 	statusText := "Playing"
-	if m.status == models.Paused {
+	switch m.status {
+	case models.Paused:
 		statusIcon = "⏸"
 		statusText = "Paused"
-	} else if m.status == models.Stopped {
+	case models.Stopped:
 		statusIcon = "■"
 		statusText = "Stopped"
 	}
@@ -271,6 +274,9 @@ func (m playerModel) inputView() string {
 func (m playerModel) handleInputModeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "enter":
+		if len(m.pendingInput) < 1 {
+			return m, nil
+		}
 		switch m.pendingAction {
 		case "playlist title to add to":
 			m.app.AddToPlaylist(m.ctx, m.storage, m.pendingInput)
