@@ -13,7 +13,7 @@ EchoTune uses a simple CLI interface. Below is a detailed explanation of each co
 ### `search`
 Search for any song on YouTube and instantly play it in the terminal.
 ```bash
-./et search "song name"
+./etune search "song name"
 ```
 - **Interactive TUI:** By default, displays a beautiful terminal UI where you can navigate search results with arrow keys/`n`/`b` and press `Enter` to play.
 - **Auto-Play:** Automatically pick and play the most relevant result by passing `--auto` or `-a`.
@@ -22,7 +22,7 @@ Search for any song on YouTube and instantly play it in the terminal.
 ### `history`
 Show your recently played songs.
 ```bash
-./et history
+./etune history
 ```
 - **Limit:** Use `--limit` or `-l` to restrict the number of history items shown.
 
@@ -30,48 +30,48 @@ Show your recently played songs.
 Manage and play your downloaded songs.
 - **`list`:** View all downloaded songs.
   ```bash
-  ./et downloads list
+  ./etune downloads list
   ```
   - Options: `--sort` or `-s` (sort by download date instead of title), `--limit` or `-l`.
 - **`play`:** Play a specific downloaded song by its name or index, or play all.
   ```bash
-  ./et downloads play "song name"
-  ./et downloads play 1
-  ./et downloads play       # Plays all downloads
+  ./etune downloads play "song name"
+  ./etune downloads play 1
+  ./etune downloads play       # Plays all downloads
   ```
   - Options: `--shuffle` or `-sh` (play in random order), `--limit` or `-l`, `--repeat` or `-r`.
 - **`remove`:** Remove a downloaded song by index or name.
   ```bash
-  ./et downloads remove "song name"
+  ./etune downloads remove "song name"
   ```
 
 ### `playlist`
 Create, manage, and play custom playlists of downloaded songs. You can add songs to playlists while they are playing using the `a` hotkey in the player.
 - **`list`:** View all saved playlists.
   ```bash
-  ./et playlist list
+  ./etune playlist list
   ```
 - **`play`:** Play all songs in a specific playlist.
   ```bash
-  ./et playlist play "playlist name"
+  ./etune playlist play "playlist name"
   ```
   - Options: `--shuffle` or `-sh`, `--limit` or `-l`, `--repeat` or `-r`.
 - **`remove`:** Remove an entire playlist, or a specific song from a playlist.
   ```bash
-  ./et playlist remove "playlist name"
-  ./et playlist remove "playlist name" "song name"
+  ./etune playlist remove "playlist name"
+  ./etune playlist remove "playlist name" "song name"
   ```
 - **`clear`:** Delete all playlists with a confirmation prompt.
   ```bash
-  ./et playlist clear
+  ./etune playlist clear
   ```
 
 ### `clear`
 Easily manage your local application data.
 ```bash
-./et clear cache     # Clear search cache (speeds up repeat searches)
-./et clear history   # Clear your playback history
-./et clear all       # Wipes everything: cache, history, downloads, and playlists
+./etune clear cache     # Clear search cache (speeds up repeat searches)
+./etune clear history   # Clear your playback history
+./etune clear all       # Wipes everything: cache, history, downloads, and playlists
 ```
 
 ## Playback Controls

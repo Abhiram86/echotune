@@ -4,25 +4,52 @@ To use EchoTune, you need to install its required dependencies and the `etune` b
 
 ## 1. Install Dependencies (`mpv` and `yt-dlp`)
 
-EchoTune relies on `mpv` to play audio streams and `yt-dlp` to search and fetch audio from YouTube. You must install these first based on your operating system. We have provided automated scripts for convenience.
+EchoTune relies on `mpv` to play audio streams and `yt-dlp` to search and fetch audio from YouTube. You must install these first. 
 
-### Linux (Debian/Ubuntu)
-Run the provided Linux script to install `mpv` via `apt` and the latest `yt-dlp` via `curl`:
+Below are the easiest commands to copy and paste into your terminal based on your operating system. We use standard package managers for `mpv` and `curl` for fetching the latest official `yt-dlp` binary.
+
+### Linux
+
+**Ubuntu / Debian / Mint:**
 ```bash
-bash installation/deps_linux_install.sh
+# Install mpv
+sudo apt-get update && sudo apt-get install -y mpv
+
+# Download the latest yt-dlp using curl
+sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
+sudo chmod a+rx /usr/local/bin/yt-dlp
+```
+
+**Fedora / RHEL:**
+```bash
+# Install mpv
+sudo dnf install -y mpv
+
+# Download the latest yt-dlp using curl
+sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
+sudo chmod a+rx /usr/local/bin/yt-dlp
+```
+
+**Arch Linux / Manjaro:**
+```bash
+# Install both via pacman
+sudo pacman -Syu --needed mpv yt-dlp
 ```
 
 ### macOS
-Run the provided macOS script to install the dependencies via Homebrew:
+
+Ensure you have [Homebrew](https://brew.sh/) installed, then run:
 ```bash
-bash installation/deps_mac_install.sh
+brew install mpv yt-dlp
 ```
 
 ### Windows
-Run the provided PowerShell script to install the dependencies via Scoop:
+
+Ensure you have [Scoop](https://scoop.sh/) installed, then run:
 ```powershell
-.\installation\deps_windows_install.ps1
+scoop install mpv yt-dlp
 ```
+*(Alternatively, you can download `yt-dlp.exe` and `mpv.exe` manually and add them to your System PATH).*
 
 ---
 
