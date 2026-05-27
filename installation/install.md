@@ -42,14 +42,35 @@ Ensure you have [Homebrew](https://brew.sh/) installed, then run:
 ```bash
 brew install mpv yt-dlp
 ```
+> **Apple Silicon (M1/M2/M3) users:** Homebrew installs to `/opt/homebrew/bin`. Make sure this directory is in your `PATH` (usually added automatically by the Homebrew installer, but worth verifying if `etune` can't find the dependencies).
 
 ### Windows
 
+**Option A: Scoop (Recommended)**
+
 Ensure you have [Scoop](https://scoop.sh/) installed, then run:
 ```powershell
-scoop install mpv yt-dlp
+# Install yt-dlp (available in the default main bucket)
+scoop install yt-dlp
+
+# Install mpv (requires the extras bucket)
+scoop bucket add extras
+scoop install extras/mpv
 ```
-*(Alternatively, you can download `yt-dlp.exe` and `mpv.exe` manually and add them to your System PATH).*
+
+**Option B: Winget (Built-in)**
+
+If you prefer not to use Scoop, you can use Windows' built-in package manager:
+```powershell
+winget install yt-dlp
+winget install mpv
+```
+
+**Option C: Manual Download**
+
+Download the standalone binaries and add them to your System PATH:
+- **yt-dlp:** Download `yt-dlp.exe` from the [latest release](https://github.com/yt-dlp/yt-dlp/releases/latest)
+- **mpv:** Download the latest Windows build from [mpv-winbuild](https://github.com/shinchiro/mpv-winbuild-cmake/releases)
 
 ---
 
