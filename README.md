@@ -2,7 +2,7 @@
 
 EchoTune is a fast, terminal-based music player and downloader. It allows you to search for songs on YouTube, play them directly in your terminal without any video overhead, and even download them for offline playback. Built with Go, it provides a clean, distraction-free music experience right from your command line.
 
-<video src="media/demo.mp4" width="100%" controls></video>
+<video src="https://github.com/Abhiram86/echotune/raw/main/media/demo.mp4" width="100%" controls></video>
 
 ## Prerequisites & Installation
 
